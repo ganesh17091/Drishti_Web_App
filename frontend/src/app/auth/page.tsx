@@ -63,7 +63,8 @@ function AuthComponent() {
         if (data.user) localStorage.setItem("user", JSON.stringify(data.user));
         router.push("/dashboard");
       } else if (!isLogin) {
-        setMessage({ text: data.message, type: "success" });
+        // Hardcoded message — never render raw server response to prevent accidental link exposure
+        setMessage({ text: "Account created! Please check your email to verify your account.", type: "success" });
         setIsLogin(true);
       }
     } catch (err: unknown) {

@@ -3,7 +3,6 @@
  * All fetch calls go through this module to ensure:
  * - Correct base URL (env var, no hardcoded localhost in production)
  * - Consistent headers and error handling
- * - Debug logging
  */
 
 // Throw immediately if the env var is missing so misconfigured deployments
@@ -22,9 +21,7 @@ const BASE_URL: string = process.env.NEXT_PUBLIC_API_URL.replace(/\/$/, ""); // 
  * Build a full API URL from a path like "/auth/login"
  */
 export function apiUrl(path: string): string {
-  const fullUrl = `${BASE_URL}${path}`;
-  console.log("[API] Calling:", fullUrl);
-  return fullUrl;
+  return `${BASE_URL}${path}`;
 }
 
 type FetchOptions = RequestInit & {
@@ -58,9 +55,8 @@ export async function apiFetch<T = unknown>(
   let res: Response;
   try {
     res = await fetch(url, { headers, body, ...rest });
-  } catch (err) {
+  } catch {
     // Network-level error (no response from server)
-    console.error("[API] Network error calling", url, err);
     throw new Error(
       "Failed to reach the server. Check your internet connection and ensure the backend is running."
     );
@@ -79,7 +75,6 @@ export async function apiFetch<T = unknown>(
       (data as Record<string, string>)?.error ||
       (data as Record<string, string>)?.message ||
       `Request failed with status ${res.status}`;
-    console.error("[API] Error response from", url, res.status, msg);
     throw new Error(msg);
   }
 

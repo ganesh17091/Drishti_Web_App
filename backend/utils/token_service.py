@@ -1,6 +1,6 @@
 import os
 import jwt
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import secrets
 import hashlib
 from functools import wraps
@@ -16,17 +16,22 @@ def hash_token(raw_token):
 
 def generate_jwt(user_id):
     """Generates a JSON Web Token for stateless authentication"""
-    secret = os.getenv('JWT_SECRET', 'fallback-dev-secret')
+    secret = os.getenv('JWT_SECRET')
+    if not secret:
+        raise EnvironmentError("JWT_SECRET environment variable is not set.")
+    now = datetime.now(timezone.utc)
     payload = {
         'user_id': user_id,
-        'exp': datetime.utcnow() + timedelta(days=1), # 1 day expiration
-        'iat': datetime.utcnow()
+        'exp': now + timedelta(days=1),
+        'iat': now
     }
     return jwt.encode(payload, secret, algorithm='HS256')
 
 def decode_jwt(token):
     """Decodes string token back to user_id, or returns None if invalid"""
-    secret = os.getenv('JWT_SECRET', 'fallback-dev-secret')
+    secret = os.getenv('JWT_SECRET')
+    if not secret:
+        return None
     try:
         payload = jwt.decode(token, secret, algorithms=['HS256'])
         return payload['user_id']

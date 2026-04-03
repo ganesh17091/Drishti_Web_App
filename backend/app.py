@@ -10,6 +10,40 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 
+# -------------------------------------------------------
+# STARTUP ENV VALIDATION
+# -------------------------------------------------------
+_REQUIRED_ENV_VARS = {
+    "EMAIL_USER":   "Gmail address used to send emails (e.g. you@gmail.com)",
+    "EMAIL_PASS":   "Gmail App Password (myaccount.google.com → Security → App Passwords)",
+    "BACKEND_URL":  "Deployed Flask API URL for verification email links",
+    "FRONTEND_URL": "Deployed Next.js URL for reset email links + CORS",
+    "SECRET_KEY":   "Flask secret key — generate with: python -c \"import secrets; print(secrets.token_hex(32))\"",
+    "JWT_SECRET":   "JWT signing secret — generate with: python -c \"import secrets; print(secrets.token_hex(32))\"",
+}
+
+
+def _validate_env() -> None:
+    """
+    Validates that all required environment variables are present.
+    Raises RuntimeError at startup if any are missing — prevents silent misconfiguration.
+    """
+    missing = [
+        f"  {var}  →  {desc}"
+        for var, desc in _REQUIRED_ENV_VARS.items()
+        if not os.getenv(var, '').strip()
+    ]
+    if missing:
+        msg = (
+            "\n\n[STARTUP ERROR] Missing required environment variables:\n"
+            + "\n".join(missing)
+            + "\n\nCopy backend/.env.example to backend/.env and fill in all values.\n"
+        )
+        logger.error(msg)
+        raise RuntimeError(msg)
+    logger.info("Environment validation passed — all required variables are set.")
+
+
 def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
@@ -104,6 +138,7 @@ def create_app(config_class=Config):
 # LOCAL RUN
 # -------------------------------
 if __name__ == '__main__':
+    _validate_env()          # Fail fast if env is incomplete
     app = create_app()
     is_debug = os.environ.get("FLASK_DEBUG", "False").lower() == "true"
 
