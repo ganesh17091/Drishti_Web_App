@@ -7,11 +7,38 @@ from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# Configure logging — include module name for per-route tracing
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
+)
 logger = logging.getLogger(__name__)
 
+
+_REQUIRED_ENV_VARS = [
+    "EMAIL_USER",
+    "EMAIL_PASS",
+    "BACKEND_URL",
+    "FRONTEND_URL",
+]
+
+def _validate_env() -> None:
+    """
+    Validates all required environment variables are present.
+    Raises EnvironmentError at startup if any are missing so the
+    app fails fast rather than crashing mid-request.
+    """
+    missing = [key for key in _REQUIRED_ENV_VARS if not os.environ.get(key, '').strip()]
+    if missing:
+        msg = f"Missing required environment variables: {', '.join(missing)}"
+        logger.error(f"[STARTUP] {msg}")
+        raise EnvironmentError(msg)
+    logger.info("[STARTUP] All required environment variables are present")
+
 def create_app(config_class=Config):
+    # Validate env vars before anything else — fail fast at startup
+    _validate_env()
+
     app = Flask(__name__)
     app.config.from_object(Config)
 
