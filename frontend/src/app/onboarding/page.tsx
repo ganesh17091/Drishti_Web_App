@@ -1,0 +1,79 @@
+"use client";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+
+export default function Onboarding() {
+  const router = useRouter();
+  const [age, setAge] = useState(20);
+  const [role, setRole] = useState("");
+  const [goals, setGoals] = useState("");
+  const [interests, setInterests] = useState("");
+  const [hours, setHours] = useState(4);
+  const [loading, setLoading] = useState(false);
+
+  const submitProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    const token = localStorage.getItem("token");
+    if (!token) {
+      router.push("/auth");
+      return;
+    }
+
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/ai/onboarding`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          age,
+          current_role: role,
+          goals,
+          interests,
+          daily_available_hours: hours,
+        }),
+      });
+
+      if (res.ok) {
+        router.push("/dashboard");
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <main style={{ padding: "4rem 2rem", maxWidth: "600px", margin: "0 auto" }}>
+      <div className="glass-panel animate-fade-in">
+        <h2>Complete Your Profile</h2>
+        <p>Give Gemini some context to generate your perfect career map.</p>
+
+        <form onSubmit={submitProfile} style={{ marginTop: "2rem" }}>
+          <label style={{ display: "block", marginBottom: "0.5rem" }}>Age</label>
+          <input type="number" className="modern-input" value={age} onChange={e => setAge(Number(e.target.value))} required />
+
+          <label style={{ display: "block", marginBottom: "0.5rem" }}>Current Role / Major</label>
+          <input type="text" className="modern-input" placeholder="e.g. Computer Science Student" value={role} onChange={e => setRole(e.target.value)} required />
+
+          <label style={{ display: "block", marginBottom: "0.5rem" }}>Career Goals</label>
+          <input type="text" className="modern-input" placeholder="e.g. Become a Machine Learning Engineer" value={goals} onChange={e => setGoals(e.target.value)} required />
+
+          <label style={{ display: "block", marginBottom: "0.5rem" }}>Interests</label>
+          <input type="text" className="modern-input" placeholder="e.g. Python, AI, Neural Networks" value={interests} onChange={e => setInterests(e.target.value)} required />
+
+          <label style={{ display: "block", marginBottom: "0.5rem" }}>Daily Available Free Hours</label>
+          <input type="number" className="modern-input" min="1" max="24" value={hours} onChange={e => setHours(Number(e.target.value))} required />
+
+          <button type="submit" className="modern-btn" disabled={loading}>
+            {loading ? "Syncing..." : "Finalize Profile"}
+          </button>
+        </form>
+      </div>
+    </main>
+  );
+}
