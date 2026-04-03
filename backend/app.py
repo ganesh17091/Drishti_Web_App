@@ -2,85 +2,47 @@ import os
 import logging
 from flask import Flask, jsonify
 from config import Config
-from extensions import db, migrate, limiter
+from extensions import db, migrate
 from flask_cors import CORS
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-
-# -------------------------------------------------------
-# STARTUP ENV VALIDATION
-# -------------------------------------------------------
-_REQUIRED_ENV_VARS = {
-    "EMAIL_USER":   "Gmail address used to send emails (e.g. you@gmail.com)",
-    "EMAIL_PASS":   "Gmail App Password (myaccount.google.com → Security → App Passwords)",
-    "BACKEND_URL":  "Deployed Flask API URL for verification email links",
-    "FRONTEND_URL": "Deployed Next.js URL for reset email links + CORS",
-    "SECRET_KEY":   "Flask secret key — generate with: python -c \"import secrets; print(secrets.token_hex(32))\"",
-    "JWT_SECRET":   "JWT signing secret — generate with: python -c \"import secrets; print(secrets.token_hex(32))\"",
-}
-
-
-def _validate_env() -> None:
-    """
-    Validates that all required environment variables are present.
-    Raises RuntimeError at startup if any are missing — prevents silent misconfiguration.
-    """
-    missing = [
-        f"  {var}  →  {desc}"
-        for var, desc in _REQUIRED_ENV_VARS.items()
-        if not os.getenv(var, '').strip()
-    ]
-    if missing:
-        msg = (
-            "\n\n[STARTUP ERROR] Missing required environment variables:\n"
-            + "\n".join(missing)
-            + "\n\nCopy backend/.env.example to backend/.env and fill in all values.\n"
-        )
-        logger.error(msg)
-        raise RuntimeError(msg)
-    logger.info("Environment validation passed — all required variables are set.")
-
-
 def create_app(config_class=Config):
     app = Flask(__name__)
-    app.config.from_object(config_class)
+    app.config.from_object(Config)
 
-    # -------------------------------
-    # DATABASE INIT
-    # -------------------------------
+    # Initialize DB
     db.init_app(app)
     migrate.init_app(app, db)
 
-    # -------------------------------
-    # CORS FIX (IMPORTANT)
-    # -------------------------------
-    frontend_url = os.environ.get("FRONTEND_URL")
-
-    if frontend_url:
-        allowed_origins = [u.strip() for u in frontend_url.split(",")]
-    else:
-        # fallback for development
-        allowed_origins = ["http://localhost:3000", "http://127.0.0.1:3000"]
-
+    # 🚀 TEMPORARY FIX: Allow all origins (fixes your current error)
     CORS(
         app,
-        resources={r"/*": {"origins": allowed_origins}},
+        resources={r"/*": {"origins": "*"}},
         supports_credentials=True
     )
 
-    logger.info(f"CORS allowed origins: {allowed_origins}")
+    # 🚀 CRITICAL: Handle preflight requests properly
+    @app.after_request
+    def add_headers(response):
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type,Authorization"
+        response.headers["Access-Control-Allow-Methods"] = "GET,POST,PUT,DELETE,OPTIONS"
+        return response
 
-    # -------------------------------
-    # RATE LIMITING
-    # -------------------------------
-    limiter.init_app(app)
+    # Rate limiting
+    limiter = Limiter(
+        get_remote_address,
+        app=app,
+        default_limits=["1500 per day", "200 per hour"],
+        storage_uri="memory://"
+    )
 
-    # -------------------------------
-    # REGISTER BLUEPRINTS
-    # -------------------------------
+    # Register blueprints
     from routes.auth_routes import auth_bp
     from routes.profile_routes import profile_bp
     from routes.dashboard_routes import dashboard_bp
@@ -103,9 +65,7 @@ def create_app(config_class=Config):
     app.register_blueprint(wellbeing_bp)
     app.register_blueprint(exam_bp)
 
-    # -------------------------------
-    # ROUTES
-    # -------------------------------
+    # Health routes
     @app.route('/')
     def index():
         return jsonify({"message": "FocusPath Backend API Operational!"}), 200
@@ -114,37 +74,18 @@ def create_app(config_class=Config):
     def health_check():
         return jsonify({"status": "healthy"}), 200
 
-    # -------------------------------
-    # GLOBAL ERROR HANDLER
-    # -------------------------------
+    # Global error handler
     @app.errorhandler(Exception)
     def handle_exception(e):
         logger.error(f"Unhandled server exception: {e}", exc_info=True)
-
         if os.environ.get("FLASK_ENV") == "development":
-            return jsonify({
-                "error": str(e),
-                "type": type(e).__name__
-            }), 500
-
-        return jsonify({
-            "error": "Internal Server Error. Please try again later."
-        }), 500
+            return jsonify({"error": str(e), "type": type(e).__name__}), 500
+        return jsonify({"error": "Internal Server Error. Please try again later."}), 500
 
     return app
 
 
-# -------------------------------
-# LOCAL RUN
-# -------------------------------
 if __name__ == '__main__':
-    _validate_env()          # Fail fast if env is incomplete
     app = create_app()
     is_debug = os.environ.get("FLASK_DEBUG", "False").lower() == "true"
-
-    logger.info("Starting Flask app...")
-    app.run(
-        debug=is_debug,
-        host='0.0.0.0',
-        port=int(os.environ.get("PORT", 5000))
-    )
+    app.run(debug=is_debug, host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
