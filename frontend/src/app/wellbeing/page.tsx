@@ -179,12 +179,14 @@ export default function WellbeingPage() {
     const t = localStorage.getItem("token");
     if (!t) { router.push("/auth"); return; }
 
-    fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/wellbeing/today`, {
+    const API = process.env.NEXT_PUBLIC_API_URL;
+    console.log("[Wellbeing] Calling API:", `${API}/wellbeing/today`);
+    fetch(`${API}/wellbeing/today`, {
       headers: { Authorization: `Bearer ${t}` },
     })
       .then(r => r.json())
       .then(d => { if (!d.error) setData(d); })
-      .catch(() => {})
+      .catch((err) => { console.error("[Wellbeing] API error:", err); })
       .finally(() => setLoading(false));
   }, []);
 

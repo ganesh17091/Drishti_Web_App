@@ -15,12 +15,18 @@ export default function AuthPage() {
     setError("");
 
     const endpoint = isLogin ? "/auth/login" : "/auth/signup";
-    const payload = isLogin 
-      ? { email, password } 
+    const payload = isLogin
+      ? { email, password }
       : { email, password, name };
 
+    if (!process.env.NEXT_PUBLIC_API_URL) {
+      throw new Error("NEXT_PUBLIC_API_URL is not set");
+    }
+    const url = `${process.env.NEXT_PUBLIC_API_URL}${endpoint}`;
+    console.log("[Auth] Calling API:", url);
+
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}${endpoint}`, {
+      const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -36,15 +42,19 @@ export default function AuthPage() {
         // Save user info so navbar avatar can display name/initials
         if (data.user) localStorage.setItem("user", JSON.stringify(data.user));
         router.push("/dashboard");
-
       } else if (!isLogin) {
         // Show success + verification hint
         const hint = data.verify_hint ? `\n\n🔗 Dev shortcut: ${data.verify_hint}` : "";
         setError(data.message + hint);
         setIsLogin(true);
       }
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      if (err instanceof TypeError && (err as TypeError).message === "Failed to fetch") {
+        setError("Cannot connect to the server. Please check your internet connection or try again later.");
+      } else {
+        setError((err as Error).message || "An unexpected error occurred.");
+      }
+      console.error("[Auth] API Error:", err);
     }
   };
 

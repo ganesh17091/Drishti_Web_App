@@ -20,15 +20,22 @@ export default function StudyPlans() {
   const [adding, setAdding] = useState(false);
 
   const token = () => localStorage.getItem("token");
+  const API = process.env.NEXT_PUBLIC_API_URL;
 
   const fetchPlans = async () => {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/study/plans`, {
-      headers: { Authorization: `Bearer ${token()}` },
-    });
-    if (res.status === 401) { router.push("/auth"); return; }
-    const data = await res.json();
-    setPlans(data);
-    setLoading(false);
+    try {
+      console.log("[Study] Calling API:", `${API}/study/plans`);
+      const res = await fetch(`${API}/study/plans`, {
+        headers: { Authorization: `Bearer ${token()}` },
+      });
+      if (res.status === 401) { router.push("/auth"); return; }
+      const data = await res.json();
+      setPlans(data);
+      setLoading(false);
+    } catch (err) {
+      console.error("[Study] fetchPlans error:", err);
+      setLoading(false);
+    }
   };
 
   useEffect(() => { fetchPlans(); }, []);
@@ -36,27 +43,42 @@ export default function StudyPlans() {
   const addPlan = async (e: React.FormEvent) => {
     e.preventDefault();
     setAdding(true);
-    await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/study/plans`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token()}` },
-      body: JSON.stringify({ task, deadline, allocated_hours: hours }),
-    });
+    try {
+      console.log("[Study] Calling API:", `${API}/study/plans`);
+      await fetch(`${API}/study/plans`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token()}` },
+        body: JSON.stringify({ task, deadline, allocated_hours: hours }),
+      });
+    } catch (err) {
+      console.error("[Study] addPlan error:", err);
+    }
     setTask(""); setDeadline(""); setHours(1);
     await fetchPlans();
     setAdding(false);
   };
 
   const completePlan = async (id: number) => {
-    await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/study/plans/${id}/complete`, {
-      method: "POST", headers: { Authorization: `Bearer ${token()}` },
-    });
+    try {
+      console.log("[Study] Calling API:", `${API}/study/plans/${id}/complete`);
+      await fetch(`${API}/study/plans/${id}/complete`, {
+        method: "POST", headers: { Authorization: `Bearer ${token()}` },
+      });
+    } catch (err) {
+      console.error("[Study] completePlan error:", err);
+    }
     fetchPlans();
   };
 
   const deletePlan = async (id: number) => {
-    await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/study/plans/${id}`, {
-      method: "DELETE", headers: { Authorization: `Bearer ${token()}` },
-    });
+    try {
+      console.log("[Study] Calling API:", `${API}/study/plans/${id}`);
+      await fetch(`${API}/study/plans/${id}`, {
+        method: "DELETE", headers: { Authorization: `Bearer ${token()}` },
+      });
+    } catch (err) {
+      console.error("[Study] deletePlan error:", err);
+    }
     fetchPlans();
   };
 

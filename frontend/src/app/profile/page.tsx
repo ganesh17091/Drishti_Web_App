@@ -17,7 +17,9 @@ export default function ProfileEdit() {
 
   useEffect(() => {
     if (!token()) { router.push("/auth"); return; }
-    fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/profile`, { headers: { Authorization: `Bearer ${token()}` } })
+    const API = process.env.NEXT_PUBLIC_API_URL;
+    console.log("[Profile] Calling API:", `${API}/profile`);
+    fetch(`${API}/profile`, { headers: { Authorization: `Bearer ${token()}` } })
       .then(r => r.json())
       .then(d => {
         setForm({
@@ -28,14 +30,16 @@ export default function ProfileEdit() {
         });
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch(err => { console.error("[Profile] GET error:", err); setLoading(false); });
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true); setSuccess(""); setError("");
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/profile`, {
+      const API = process.env.NEXT_PUBLIC_API_URL;
+      console.log("[Profile] Calling API:", `${API}/profile`);
+      const res = await fetch(`${API}/profile`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token()}` },
         body: JSON.stringify({
@@ -47,8 +51,13 @@ export default function ProfileEdit() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setSuccess("Profile updated! Gemini will use your new info next time.");
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      if (err instanceof TypeError && (err as TypeError).message === "Failed to fetch") {
+        setError("Cannot connect to the server. Please check your internet connection.");
+      } else {
+        setError((err as Error).message || "An unexpected error occurred.");
+      }
+      console.error("[Profile] PUT error:", err);
     } finally {
       setSaving(false);
     }

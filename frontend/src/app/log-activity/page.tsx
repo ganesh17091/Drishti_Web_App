@@ -20,8 +20,11 @@ export default function LogActivity() {
     const token = localStorage.getItem("token");
     if (!token) { router.push("/auth"); return; }
 
+    const API = process.env.NEXT_PUBLIC_API_URL;
+    console.log("[LogActivity] Calling API:", `${API}/ai/log-activity`);
+
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/ai/log-activity`, {
+      const res = await fetch(`${API}/ai/log-activity`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ activity_type: type, description, duration_minutes: duration }),
@@ -31,8 +34,13 @@ export default function LogActivity() {
       setSuccessMsg("✅ Activity logged! Keep going 🚀");
       setDescription("");
       setDuration(30);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      if (err instanceof TypeError && (err as TypeError).message === "Failed to fetch") {
+        setError("Cannot connect to the server. Please check your internet connection.");
+      } else {
+        setError((err as Error).message || "An unexpected error occurred.");
+      }
+      console.error("[LogActivity] API Error:", err);
     } finally {
       setLoading(false);
     }

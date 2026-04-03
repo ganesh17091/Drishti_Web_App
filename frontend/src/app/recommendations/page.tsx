@@ -12,12 +12,21 @@ export default function Recommendations() {
     const token = localStorage.getItem("token");
     if (!token) { router.push("/auth"); return; }
 
-    fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/ai/recommendations`, {
+    const API = process.env.NEXT_PUBLIC_API_URL;
+    console.log("[Recommendations] Calling API:", `${API}/ai/recommendations`);
+    fetch(`${API}/ai/recommendations`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(r => r.json())
       .then(d => { setData(d); setLoading(false); })
-      .catch(err => { setError(err.message); setLoading(false); });
+      .catch(err => {
+        console.error("[Recommendations] API error:", err);
+        const msg = err instanceof TypeError && err.message === "Failed to fetch"
+          ? "Cannot connect to the server. Please check your internet connection."
+          : err.message;
+        setError(msg);
+        setLoading(false);
+      });
   }, []);
 
   return (

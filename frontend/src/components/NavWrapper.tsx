@@ -21,12 +21,15 @@ export default function NavWrapper({ children }: { children: React.ReactNode }) 
     } catch {}
   }, [pathname]);
 
+  const API = process.env.NEXT_PUBLIC_API_URL;
+
   // Fetch exams/goals for persistent countdown strip
   useEffect(() => {
     if (!showNav) { setExams([]); return; }
     const token = localStorage.getItem("token");
     if (!token) return;
-    fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/exams`, { headers: { Authorization: `Bearer ${token}` } })
+    console.log("[NavWrapper] Calling API:", `${API}/exams`);
+    fetch(`${API}/exams`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
       .then(d => { if (Array.isArray(d)) setExams(d.filter((i: ExamItem) => i.days_left >= 0).slice(0, 6)); })
       .catch(() => {});

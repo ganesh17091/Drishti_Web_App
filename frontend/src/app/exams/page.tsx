@@ -65,12 +65,15 @@ export default function ExamsPage() {
   const [formError, setFormError] = useState("");
 
   const token = () => localStorage.getItem("token");
+  const API = process.env.NEXT_PUBLIC_API_URL;
 
   useEffect(() => {
     const t = token();
     if (!t) { router.push("/auth"); return; }
-    fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/exams`, { headers: { Authorization: `Bearer ${t}` } })
+    console.log("[Exams] Calling API:", `${API}/exams`);
+    fetch(`${API}/exams`, { headers: { Authorization: `Bearer ${t}` } })
       .then(r => r.json()).then(d => { if (Array.isArray(d)) setItems(d); })
+      .catch(err => console.error("[Exams] fetchExams error:", err))
       .finally(() => setLoading(false));
   }, []);
 
@@ -81,7 +84,8 @@ export default function ExamsPage() {
     setSubmitting(true);
     const t = token();
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/exams`, {
+      console.log("[Exams] Calling API:", `${API}/exams`);
+      const res = await fetch(`${API}/exams`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${t}` },
         body: JSON.stringify({ title, target_date: date, type, description: desc, emoji, color }),
@@ -100,7 +104,12 @@ export default function ExamsPage() {
 
   const handleDelete = async (id: number) => {
     const t = token();
-    await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/exams/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${t}` } });
+    try {
+      console.log("[Exams] Calling API:", `${API}/exams/${id}`);
+      await fetch(`${API}/exams/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${t}` } });
+    } catch (err) {
+      console.error("[Exams] deleteExam error:", err);
+    }
     setItems(prev => prev.filter(i => i.id !== id));
   };
 

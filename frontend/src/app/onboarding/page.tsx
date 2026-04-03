@@ -21,8 +21,11 @@ export default function Onboarding() {
       return;
     }
 
+    const API = process.env.NEXT_PUBLIC_API_URL;
+    console.log("[Onboarding] Calling API:", `${API}/ai/onboarding`);
+
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/ai/onboarding`, {
+      const res = await fetch(`${API}/ai/onboarding`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -41,7 +44,7 @@ export default function Onboarding() {
         router.push("/dashboard");
       }
     } catch (err) {
-      console.error(err);
+      console.error("[Onboarding] API Error:", err);
     } finally {
       setLoading(false);
     }

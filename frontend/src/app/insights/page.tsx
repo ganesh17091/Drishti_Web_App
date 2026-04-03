@@ -58,12 +58,17 @@ export default function Insights() {
     const token = localStorage.getItem("token");
     if (!token) { router.push("/auth"); return; }
 
-    fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/ai/insights`, {
+    const API = process.env.NEXT_PUBLIC_API_URL;
+    console.log("[Insights] Calling API:", `${API}/ai/insights`);
+    fetch(`${API}/ai/insights`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(r => r.json())
       .then(d => { if (d.error) throw new Error(d.error); setData(d); })
-      .catch(e => setError(e.message))
+      .catch(e => {
+        console.error("[Insights] API error:", e);
+        setError(e.message);
+      })
       .finally(() => setLoading(false));
   }, []);
 

@@ -38,19 +38,25 @@ export default function Resources() {
   const fetchResources = async () => {
     const t = token();
     if (!t) { router.push("/auth"); return; }
+    const API = process.env.NEXT_PUBLIC_API_URL;
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/ai/resources`, {
+      console.log("[Resources] Calling API:", `${API}/ai/resources`);
+      const res = await fetch(`${API}/ai/resources`, {
         headers: { Authorization: `Bearer ${t}` },
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.message || json.error || "Failed to load resources");
       setData(json);
-    } catch (e: any) {
-      if (e.message === "RATE_LIMIT" || e.message?.includes("too many requests")) {
+    } catch (e: unknown) {
+      const msg = (e as Error)?.message || "";
+      if (msg === "RATE_LIMIT" || msg?.includes("too many requests")) {
           setError("⚠️ API Rate Limit Exceeded: FocusBot hit Google's free-tier request limit (15 requests/min). Please wait 60 seconds and refresh!");
+      } else if (e instanceof TypeError && msg === "Failed to fetch") {
+          setError("Cannot connect to the server. Please check your internet connection.");
       } else {
-          setError(e.message);
+          setError(msg);
       }
+      console.error("[Resources] fetchResources error:", e);
     } finally {
       setLoading(false);
     }
@@ -60,20 +66,26 @@ export default function Resources() {
     setRefreshing(true);
     setError("");
     const t = token();
+    const API = process.env.NEXT_PUBLIC_API_URL;
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/ai/resources/refresh`, {
+      console.log("[Resources] Calling API:", `${API}/ai/resources/refresh`);
+      const res = await fetch(`${API}/ai/resources/refresh`, {
         method: "POST",
         headers: { Authorization: `Bearer ${t}` },
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.message || json.error || "Failed to refresh");
       setData(json);
-    } catch (e: any) {
-      if (e.message === "RATE_LIMIT" || e.message?.includes("too many requests")) {
+    } catch (e: unknown) {
+      const msg = (e as Error)?.message || "";
+      if (msg === "RATE_LIMIT" || msg?.includes("too many requests")) {
           setError("⚠️ API Rate Limit Exceeded: FocusBot hit Google's free-tier request limit (15 requests/min). Please wait 60 seconds and refresh!");
+      } else if (e instanceof TypeError && msg === "Failed to fetch") {
+          setError("Cannot connect to the server. Please check your internet connection.");
       } else {
-          setError(e.message);
+          setError(msg);
       }
+      console.error("[Resources] refresh error:", e);
     } finally {
       setRefreshing(false);
     }

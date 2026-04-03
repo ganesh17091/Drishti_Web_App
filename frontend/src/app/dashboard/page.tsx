@@ -44,6 +44,7 @@ export default function Dashboard() {
   const [insightsLoading, setInsightsLoading] = useState(true);
 
   const token = () => localStorage.getItem("token");
+  const API = process.env.NEXT_PUBLIC_API_URL;
 
   useEffect(() => {
     const t = token();
@@ -51,9 +52,10 @@ export default function Dashboard() {
 
     const loadData = () => {
       setSchedLoading(true);
-      
+
       // Step 1: Check if today's schedule already exists
-      fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/ai/schedule/today`, {
+      console.log("[Dashboard] Calling API:", `${API}/ai/schedule/today`);
+      fetch(`${API}/ai/schedule/today`, {
         headers: { Authorization: `Bearer ${t}` },
       })
         .then(r => {
@@ -69,7 +71,8 @@ export default function Dashboard() {
             setSchedLoading(false);
           } else {
             // Step 2: No schedule yet — generate one via Gemini
-            fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/ai/generate-schedule`, {
+            console.log("[Dashboard] Calling API:", `${API}/ai/generate-schedule`);
+            fetch(`${API}/ai/generate-schedule`, {
               method: "POST",
               headers: { Authorization: `Bearer ${t}` },
             })
@@ -85,7 +88,8 @@ export default function Dashboard() {
         .catch(() => setSchedLoading(false));
 
       // Fetch insights (non-blocking, silent error)
-      fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/ai/insights`, {
+      console.log("[Dashboard] Calling API:", `${API}/ai/insights`);
+      fetch(`${API}/ai/insights`, {
         headers: { Authorization: `Bearer ${t}` },
       })
         .then(r => r.json())

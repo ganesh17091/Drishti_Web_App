@@ -20,6 +20,7 @@ export default function ChatWidget() {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const token = () => typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  const API = process.env.NEXT_PUBLIC_API_URL;
 
   // Computed before any conditional return — determines if we're on a public page
   const isPublicRoute = pathname === "/" || pathname === "/auth" || pathname === "/onboarding";
@@ -30,7 +31,8 @@ export default function ChatWidget() {
     const t = token();
     if (!t) return;
     setHistoryLoading(true);
-    fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/chat/history`, { headers: { Authorization: `Bearer ${t}` } })
+    console.log("[ChatWidget] Calling API:", `${API}/chat/history`);
+    fetch(`${API}/chat/history`, { headers: { Authorization: `Bearer ${t}` } })
       .then(r => r.json())
       .then(data => { if (Array.isArray(data)) setMessages(data); })
       .catch(() => {})
@@ -60,13 +62,14 @@ export default function ChatWidget() {
     setInput(""); setLoading(true);
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/chat/message`, {
+      console.log("[ChatWidget] Calling API:", `${API}/chat/message`);
+      const res = await fetch(`${API}/chat/message`, {
         method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${t}` },
         body: JSON.stringify({ message: msgText }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      
+
       setMessages(prev => [...prev, { role: "assistant", message: data.reply }]);
       if (data.action?.type && !data.action_result?.error) {
         setActionToast(ACTION_LABELS[data.action.type] || "✨ Action Performed");
@@ -75,12 +78,19 @@ export default function ChatWidget() {
             setTimeout(() => window.dispatchEvent(new Event("focuspath:update")), 1000);
         }
       }
-    } catch (err: any) {
-      const isRateLimit = err.message?.includes("429") || err.message?.toLowerCase().includes("quota");
-      setMessages(prev => [...prev, { 
-        role: "assistant", 
-        message: isRateLimit ? "⚠️ I'm receiving too many requests right now. Please wait a minute and try again." : "⚠️ Something went wrong." 
+    } catch (err: unknown) {
+      const msg = (err as Error)?.message || "";
+      const isRateLimit = msg.includes("429") || msg.toLowerCase().includes("quota");
+      const isFetchFail = err instanceof TypeError && msg === "Failed to fetch";
+      setMessages(prev => [...prev, {
+        role: "assistant",
+        message: isRateLimit
+          ? "⚠️ I'm receiving too many requests right now. Please wait a minute and try again."
+          : isFetchFail
+          ? "⚠️ Cannot reach the server. Check your internet connection."
+          : "⚠️ Something went wrong.",
       }]);
+      console.error("[ChatWidget] API Error:", err);
     } finally {
       setLoading(false);
     }
