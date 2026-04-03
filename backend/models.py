@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from extensions import db
 from flask_bcrypt import generate_password_hash, check_password_hash
 
@@ -15,8 +15,10 @@ class User(db.Model):
     
     # JWT/Email Validation Tokens
     verification_token = db.Column(db.String(100), nullable=True)
+    verification_token_expires = db.Column(db.DateTime(timezone=True), nullable=True)
     reset_token = db.Column(db.String(100), nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    reset_token_expires = db.Column(db.DateTime(timezone=True), nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     
     # Relationships
     user_profile = db.relationship('UserProfile', backref='user', uselist=False, lazy=True)
@@ -46,7 +48,7 @@ class UserProfile(db.Model):
     goals = db.Column(db.Text)
     interests = db.Column(db.Text)
     daily_available_hours = db.Column(db.Integer)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
 class UserActivityLog(db.Model):
     __tablename__ = 'user_activity_logs'
@@ -55,7 +57,7 @@ class UserActivityLog(db.Model):
     activity_type = db.Column(db.Text)  # e.g. "login", "study", "idle"
     description = db.Column(db.Text)
     duration_minutes = db.Column(db.Integer)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
 class AIRecommendation(db.Model):
     __tablename__ = 'ai_recommendations'
@@ -63,7 +65,7 @@ class AIRecommendation(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     recommendation_type = db.Column(db.Text) # e.g. "book", "paper", "schedule"
     content = db.Column(db.JSON)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
 class UserSchedule(db.Model):
     __tablename__ = 'user_schedules'
@@ -71,7 +73,7 @@ class UserSchedule(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     schedule_date = db.Column(db.Date, nullable=False)
     schedule_data = db.Column(db.JSON)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
 # --- Original Tables ---
 
@@ -98,14 +100,14 @@ class Progress(db.Model):
     study_hours = db.Column(db.Float, default=0.0)
     tasks_completed = db.Column(db.Integer, default=0)
     productivity_score = db.Column(db.Float, default=0.0)
-    date_recorded = db.Column(db.DateTime, default=datetime.utcnow)
+    date_recorded = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
 class Notification(db.Model):
     __tablename__ = 'notifications'
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     message = db.Column(db.String(250), nullable=False)
-    date = db.Column(db.DateTime, default=datetime.utcnow)
+    date = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     is_read = db.Column(db.Boolean, default=False)
 
 class Todo(db.Model):
@@ -114,7 +116,7 @@ class Todo(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     name = db.Column(db.String(255), nullable=False)
     is_completed = db.Column(db.Boolean, default=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
 class ChatHistory(db.Model):
     __tablename__ = 'chat_history'
@@ -122,7 +124,7 @@ class ChatHistory(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     role = db.Column(db.String(20), nullable=False)   # "user" or "assistant"
     message = db.Column(db.Text, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
 class ExamGoal(db.Model):
     __tablename__ = 'exam_goals'
@@ -134,5 +136,5 @@ class ExamGoal(db.Model):
     description = db.Column(db.Text, nullable=True)
     emoji = db.Column(db.String(10), default='📅')
     color = db.Column(db.String(20), default='#8b5cf6')
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 

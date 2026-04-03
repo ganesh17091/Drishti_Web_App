@@ -2,12 +2,17 @@ import os
 import jwt
 from datetime import datetime, timedelta
 import secrets
+import hashlib
 from functools import wraps
 from flask import request, jsonify
 
 def generate_random_token():
     """Generates a secure random 32-byte token for verification/resets"""
     return secrets.token_urlsafe(32)
+
+def hash_token(raw_token):
+    """Generates a deterministic SHA-256 hash of a raw token for DB storage"""
+    return hashlib.sha256(raw_token.encode('utf-8')).hexdigest()
 
 def generate_jwt(user_id):
     """Generates a JSON Web Token for stateless authentication"""

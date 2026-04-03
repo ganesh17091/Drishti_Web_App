@@ -2,10 +2,8 @@ import os
 import logging
 from flask import Flask, jsonify
 from config import Config
-from extensions import db, migrate
+from extensions import db, migrate, limiter
 from flask_cors import CORS
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -44,12 +42,7 @@ def create_app(config_class=Config):
     # -------------------------------
     # RATE LIMITING
     # -------------------------------
-    limiter = Limiter(
-        key_func=get_remote_address,
-        app=app,
-        default_limits=["1500 per day", "200 per hour"],
-        storage_uri="memory://"
-    )
+    limiter.init_app(app)
 
     # -------------------------------
     # REGISTER BLUEPRINTS
