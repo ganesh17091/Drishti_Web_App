@@ -267,7 +267,10 @@ def forgot_password():
         data = request.get_json(silent=True)
         if not data or not isinstance(data, dict):
             return jsonify({'error': 'Request body must be a valid JSON object.'}), 400
-        email = data.get('email', '').strip()
+        
+        email = data.get("email", "").strip().lower()
+        print("FORGOT PASSWORD CALLED")
+        print("EMAIL:", email)
 
         if not email:
             return jsonify({'error': 'Email is required.'}), 400

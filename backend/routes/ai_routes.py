@@ -59,6 +59,8 @@ def log_activity(current_user):
 @ai_bp.route('/generate-insights', methods=['POST'])
 @token_required
 def generate_insights(current_user):
+    print("AI ROUTE CALLED")
+    print("INPUT DATA:", request.get_json(silent=True))
     try:
         profile = UserProfile.query.filter_by(user_id=current_user.id).first()
         if not profile:
@@ -84,6 +86,8 @@ def generate_insights(current_user):
 @ai_bp.route('/generate-schedule', methods=['POST'])
 @token_required
 def generate_schedule(current_user):
+    print("AI ROUTE CALLED")
+    print("INPUT DATA:", request.get_json(silent=True))
     logger.info("[generate-schedule] Request started for user_id=%s", current_user.id)
     try:
         # ── 1. VALIDATE: user profile must exist ────────────────────────────────

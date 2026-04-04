@@ -14,10 +14,7 @@ def send_verification_email(to_email: str, raw_token: str, user_name: str = "Use
     if not backend_url:
         raise EnvironmentError("BACKEND_URL is not set — verification link cannot be constructed.")
 
-    # 1. hardcoded list of recipients, replacing the intended email for testing (DEBUG OVERRIDE)
-    # The actual recipient is preserved in the debug logs.
-    debug_recipient = "your_real_email@gmail.com"
-    recipient_list = [debug_recipient]
+    recipient_list = [to_email]
     
     sender_email = current_app.config.get('MAIL_DEFAULT_SENDER', 'noreply@focuspath.com')
     
@@ -122,8 +119,7 @@ def send_reset_email(to_email: str, raw_token: str, user_name: str = "User") -> 
     if not frontend_url:
         raise EnvironmentError("FRONTEND_URL is not set — reset link cannot be constructed.")
 
-    debug_recipient = "your_real_email@gmail.com"
-    recipient_list = [debug_recipient]
+    recipient_list = [to_email]
     
     sender_email = current_app.config.get('MAIL_DEFAULT_SENDER', 'noreply@focuspath.com')
     

@@ -39,8 +39,15 @@ def create_app(config_class=Config):
     # Mail initialization
     mail.init_app(app)
 
-    # Standardize CORS using Flask-CORS specifically. It handles OPTIONS natively.
-    CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
+    # Standardize CORS using Flask-CORS specifically.
+    CORS(app, resources={r"/*": {"origins": "*"}})
+
+    @app.after_request
+    def after_request(response):
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type,Authorization"
+        response.headers["Access-Control-Allow-Methods"] = "GET,POST,PUT,DELETE,OPTIONS"
+        return response
 
     # Blueprints
     from routes.auth_routes import auth_bp
