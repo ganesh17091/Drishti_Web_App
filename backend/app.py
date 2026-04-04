@@ -1,6 +1,6 @@
 import os
 import logging
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from config import Config
 from extensions import db, migrate
 from flask_cors import CORS
@@ -31,31 +31,33 @@ def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(Config)
 
-    # ✅ Initialize DB
+    # DB
     db.init_app(app)
     migrate.init_app(app, db)
 
-    # ✅ FIXED CORS (ONLY THIS — remove manual headers)
+    # CORS
     frontend_url = os.environ.get("FRONTEND_URL")
 
     CORS(
-    app,
-    resources={r"/*": {"origins": frontend_url}},
-    supports_credentials=True
+        app,
+        resources={r"/*": {"origins": frontend_url}},
+        supports_credentials=True
     )
 
-@app.before_request
-def handle_preflight():
-    if request.method == "OPTIONS":
-        response = app.make_default_options_response()
-        headers = response.headers
+    # ✅ FIX: preflight handler INSIDE create_app
+    @app.before_request
+    def handle_preflight():
+        if request.method == "OPTIONS":
+            response = app.make_default_options_response()
+            headers = response.headers
 
-        headers["Access-Control-Allow-Origin"] = os.environ.get("FRONTEND_URL")
-        headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
-        headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+            headers["Access-Control-Allow-Origin"] = frontend_url
+            headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+            headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
 
-        return response
-    # ✅ Rate limiting
+            return response
+
+    # Rate limiter
     limiter = Limiter(
         get_remote_address,
         app=app,
@@ -63,7 +65,7 @@ def handle_preflight():
         storage_uri="memory://"
     )
 
-    # ✅ Register blueprints
+    # Blueprints
     from routes.auth_routes import auth_bp
     from routes.profile_routes import profile_bp
     from routes.dashboard_routes import dashboard_bp
@@ -86,20 +88,14 @@ def handle_preflight():
     app.register_blueprint(wellbeing_bp)
     app.register_blueprint(exam_bp)
 
-    # ✅ Health routes
+    # Routes
     @app.route('/')
     def index():
-        return jsonify({"message": "FocusPath Backend API Operational!"}), 200
+        return jsonify({"message": "FocusPath Backend API Operational!"})
 
     @app.route('/health')
     def health_check():
-        return jsonify({"status": "healthy"}), 200
-
-    # ✅ Global error handler
-    @app.errorhandler(Exception)
-    def handle_exception(e):
-        logger.error(f"Error: {e}", exc_info=True)
-        return jsonify({"error": "Internal Server Error"}), 500
+        return jsonify({"status": "healthy"})
 
     logger.info("Backend started successfully")
 
