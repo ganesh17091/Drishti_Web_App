@@ -37,12 +37,8 @@ def create_app(config_class=Config):
 
     # CORS
     frontend_url = os.environ.get("FRONTEND_URL")
-
-    CORS(
-        app,
-        resources={r"/*": {"origins": frontend_url}},
-        supports_credentials=True
-    )
+    CORS(app, resources={r"/*": {"origins": "*"}})
+    
 
     # ✅ FIX: preflight handler INSIDE create_app
     @app.before_request
