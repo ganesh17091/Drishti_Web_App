@@ -36,8 +36,8 @@ def create_app(config_class=Config):
     # Properly tie the globally used limiter to the current app 
     limiter.init_app(app)
 
-    # CORS completely handled here
-    CORS(app)
+    # CORS completely handled here - temporarily allowing all origins as requested
+    CORS(app, resources={r"/*": {"origins": "*"}})
 
     @app.after_request
     def add_cors_headers(response):
@@ -92,6 +92,10 @@ def create_app(config_class=Config):
     @app.route('/health')
     def health_check():
         return jsonify({"status": "healthy"})
+
+    @app.route('/test')
+    def test_route():
+        return jsonify({"message": "Backend working"})
 
     logger.info("Backend started successfully")
 
