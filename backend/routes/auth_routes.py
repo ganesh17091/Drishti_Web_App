@@ -23,9 +23,10 @@ auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 @auth_bp.route('/signup', methods=['POST'])
 @limiter.limit("5 per minute")
 def signup():
-    logger.info("[SIGNUP] Request received")
+    logger.info("STEP 1 reached - [SIGNUP] Request received")
     try:
         data = request.get_json(silent=True)
+        logger.info(f"STEP 2 data received - received payload: {bool(data)}")
         if not data or not isinstance(data, dict):
             logger.warning("[SIGNUP] Missing or malformed JSON body")
             return jsonify({'error': 'Request body must be a valid JSON object.'}), 400
@@ -64,12 +65,14 @@ def signup():
         logger.info("[SIGNUP] Verification token generated")
 
         # ── Step 4: Stage user (do NOT commit yet) ───────────────────────────
+        logger.info("STEP 3 before DB - Staging user in session")
         db.session.add(new_user)
-        logger.info("[SIGNUP] User staged in DB session (not yet committed)")
+
+        logger.info("STEP 4 after DB - User staged")
 
         # ── Step 5: Send verification email BEFORE committing ─────────────────
         # If email fails, we roll back so no orphan user record is created.
-        logger.info(f"[SIGNUP] Attempting to send verification email to: {email}")
+        logger.info(f"STEP 5 before email - Attempting to queue async verification email to: {email}")
         try:
             send_verification_email(email, raw_token, name)
             logger.info(f"[SIGNUP] Verification email sent successfully to: {email}")

@@ -32,14 +32,27 @@ def _build_smtp_connection() -> smtplib.SMTP_SSL:
     return smtp
 
 
+import threading
+
+def _dispatch_email_async(msg: EmailMessage, email_user: str, email_pass: str):
+    """Background worker for sending email."""
+    try:
+        smtp = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+        smtp.login(email_user, email_pass)
+        smtp.send_message(msg)
+        smtp.quit()
+        logger.info(f"Async email dispatched successfully to {msg['To']}")
+    except Exception as e:
+        logger.error(f"Async email dispatch failed for {msg['To']}: {str(e)}", exc_info=True)
+
 def _dispatch_email(msg: EmailMessage) -> None:
     """
-    Sends a pre-built EmailMessage through SMTP.
-    Raises Exception on any failure so callers can decide how to handle it.
+    Sends a pre-built EmailMessage through SMTP via a background thread.
+    This prevents the main request thread from hanging up to 30 seconds.
     """
-    email_user, _ = _get_smtp_credentials()
-    with _build_smtp_connection() as smtp:
-        smtp.send_message(msg)
+    email_user, email_pass = _get_smtp_credentials()
+    thread = threading.Thread(target=_dispatch_email_async, args=(msg, email_user, email_pass))
+    thread.start()
 
 
 def send_verification_email(to_email: str, raw_token: str, user_name: str = "User") -> None:
@@ -137,10 +150,8 @@ def send_verification_email(to_email: str, raw_token: str, user_name: str = "Use
 
     try:
         _dispatch_email(msg)
-        logger.info(f"Verification email sent successfully to {to_email}")
     except Exception as e:
-        logger.error(f"Email send failed for {to_email}: {str(e)}")
-        raise
+        logger.error(f"Failed to queue verification email for {to_email}: {str(e)}")
 
 
 def send_reset_email(to_email: str, raw_token: str, user_name: str = "User") -> None:
@@ -237,7 +248,5 @@ def send_reset_email(to_email: str, raw_token: str, user_name: str = "User") -> 
 
     try:
         _dispatch_email(msg)
-        logger.info(f"Password reset email sent successfully to {to_email}")
     except Exception as e:
-        logger.error(f"Reset email send failed for {to_email}: {str(e)}")
-        raise
+        logger.error(f"Failed to queue reset email for {to_email}: {str(e)}")
