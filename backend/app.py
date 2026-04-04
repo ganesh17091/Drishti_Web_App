@@ -39,13 +39,22 @@ def create_app(config_class=Config):
     frontend_url = os.environ.get("FRONTEND_URL")
 
     CORS(
-        app,
-        origins=[frontend_url],
-        supports_credentials=True,
-        methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        allow_headers=["Content-Type", "Authorization"]
+    app,
+    resources={r"/*": {"origins": frontend_url}},
+    supports_credentials=True
     )
 
+@app.before_request
+def handle_preflight():
+    if request.method == "OPTIONS":
+        response = app.make_default_options_response()
+        headers = response.headers
+
+        headers["Access-Control-Allow-Origin"] = os.environ.get("FRONTEND_URL")
+        headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+        headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+
+        return response
     # ✅ Rate limiting
     limiter = Limiter(
         get_remote_address,
