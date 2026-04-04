@@ -1,82 +1,37 @@
 import os
 import logging
-import smtplib
-from email.message import EmailMessage
-from email.utils import formataddr
+from flask import current_app
+from flask_mail import Message
+from extensions import mail
 
 logger = logging.getLogger(__name__)
-
-
-def _get_smtp_credentials() -> tuple[str, str]:
-    """
-    Returns (EMAIL_USER, EMAIL_PASS) from environment.
-    Raises EnvironmentError with a clear message if either is missing.
-    """
-    email_user = os.getenv('EMAIL_USER', '').strip()
-    email_pass = os.getenv('EMAIL_PASS', '').strip()
-    if not email_user:
-        raise EnvironmentError("EMAIL_USER is not set in environment variables.")
-    if not email_pass:
-        raise EnvironmentError("EMAIL_PASS is not set in environment variables.")
-    return email_user, email_pass
-
-
-def _build_smtp_connection() -> smtplib.SMTP_SSL:
-    """
-    Opens and returns an authenticated SMTP_SSL connection.
-    Raises on any connection or auth failure — no silent swallowing.
-    """
-    email_user, email_pass = _get_smtp_credentials()
-    smtp = smtplib.SMTP_SSL('smtp.gmail.com', 465)
-    smtp.login(email_user, email_pass)
-    return smtp
-
-
-import threading
-
-def _dispatch_email_async(msg: EmailMessage, email_user: str, email_pass: str):
-    """Background worker for sending email."""
-    try:
-        smtp = smtplib.SMTP_SSL('smtp.gmail.com', 465)
-        smtp.login(email_user, email_pass)
-        smtp.send_message(msg)
-        smtp.quit()
-        logger.info(f"Async email dispatched successfully to {msg['To']}")
-    except Exception as e:
-        logger.error(f"Async email dispatch failed for {msg['To']}: {str(e)}", exc_info=True)
-
-def _dispatch_email(msg: EmailMessage) -> None:
-    """
-    Sends a pre-built EmailMessage through SMTP via a background thread.
-    This prevents the main request thread from hanging up to 30 seconds.
-    """
-    email_user, email_pass = _get_smtp_credentials()
-    thread = threading.Thread(target=_dispatch_email_async, args=(msg, email_user, email_pass))
-    thread.start()
-
 
 def send_verification_email(to_email: str, raw_token: str, user_name: str = "User") -> None:
     """
     Sends an account verification email. BACKEND_URL must be configured.
-
-    Raises:
-        EnvironmentError  — if EMAIL_USER, EMAIL_PASS, or BACKEND_URL are missing
-        Exception         — if SMTP delivery fails for any reason
-
-    Callers are responsible for catching and handling these exceptions.
     """
     backend_url = os.getenv('BACKEND_URL', '').rstrip('/')
     if not backend_url:
         raise EnvironmentError("BACKEND_URL is not set — verification link cannot be constructed.")
 
-    email_user, _ = _get_smtp_credentials()   # raises EnvironmentError if missing
+    # 1. hardcoded list of recipients, replacing the intended email for testing (DEBUG OVERRIDE)
+    # The actual recipient is preserved in the debug logs.
+    debug_recipient = "your_real_email@gmail.com"
+    recipient_list = [debug_recipient]
+    
+    sender_email = current_app.config.get('MAIL_DEFAULT_SENDER', 'noreply@focuspath.com')
+    
+    # 2. Add debug logs: Print recipient email, Print sender email
+    logger.info(f"DEBUG EMAIL [Verification]: Preparing to send to intended recipient={to_email}, actual routing to={recipient_list}")
+    logger.info(f"DEBUG EMAIL [Verification]: Sender={sender_email}")
 
     verify_link = f"{backend_url}/auth/verify/{raw_token}"
 
-    msg = EmailMessage()
-    msg['Subject'] = 'Verify your FocusPath account'
-    msg['From'] = formataddr(("FocusPath", email_user))
-    msg['To'] = to_email
+    msg = Message(
+        subject='Verify your FocusPath account',
+        sender=("FocusPath", sender_email),
+        recipients=recipient_list
+    )
 
     plain = (
         f"Hi {user_name},\n\n"
@@ -145,37 +100,43 @@ def send_verification_email(to_email: str, raw_token: str, user_name: str = "Use
 </body>
 </html>"""
 
-    msg.set_content(plain)
-    msg.add_alternative(html, subtype='html')
+    msg.body = plain
+    msg.html = html
 
+    # 4. Wrap email sending in try/except and ensure Synchronous execution
     try:
-        _dispatch_email(msg)
+        logger.info(f"DEBUG EMAIL [Verification]: Trying to send email to {recipient_list} (Before mail.send)")
+        mail.send(msg)
+        logger.info(f"DEBUG EMAIL [Verification]: Successfully sent email to {recipient_list} (After mail.send)")
     except Exception as e:
-        logger.error(f"Failed to queue verification email for {to_email}: {str(e)}")
+        logger.error(f"DEBUG EMAIL ERROR: Failed to send verification email to {recipient_list}: {str(e)}", exc_info=True)
+        # Raise exception to the caller (auth_routes) to return an error response
+        raise e
 
 
 def send_reset_email(to_email: str, raw_token: str, user_name: str = "User") -> None:
     """
     Sends a password reset email. FRONTEND_URL must be configured.
-
-    Raises:
-        EnvironmentError  — if EMAIL_USER, EMAIL_PASS, or FRONTEND_URL are missing
-        Exception         — if SMTP delivery fails for any reason
-
-    Callers are responsible for catching and handling these exceptions.
     """
     frontend_url = os.getenv('FRONTEND_URL', '').rstrip('/')
     if not frontend_url:
         raise EnvironmentError("FRONTEND_URL is not set — reset link cannot be constructed.")
 
-    email_user, _ = _get_smtp_credentials()   # raises EnvironmentError if missing
+    debug_recipient = "your_real_email@gmail.com"
+    recipient_list = [debug_recipient]
+    
+    sender_email = current_app.config.get('MAIL_DEFAULT_SENDER', 'noreply@focuspath.com')
+    
+    logger.info(f"DEBUG EMAIL [Reset]: Preparing to send to intended recipient={to_email}, actual routing to={recipient_list}")
+    logger.info(f"DEBUG EMAIL [Reset]: Sender={sender_email}")
 
     reset_link = f"{frontend_url}/reset-password/{raw_token}"
 
-    msg = EmailMessage()
-    msg['Subject'] = 'Reset your FocusPath password'
-    msg['From'] = formataddr(("FocusPath", email_user))
-    msg['To'] = to_email
+    msg = Message(
+        subject='Reset your FocusPath password',
+        sender=("FocusPath", sender_email),
+        recipients=recipient_list
+    )
 
     plain = (
         f"Hi {user_name},\n\n"
@@ -243,10 +204,13 @@ def send_reset_email(to_email: str, raw_token: str, user_name: str = "User") -> 
 </body>
 </html>"""
 
-    msg.set_content(plain)
-    msg.add_alternative(html, subtype='html')
+    msg.body = plain
+    msg.html = html
 
     try:
-        _dispatch_email(msg)
+        logger.info(f"DEBUG EMAIL [Reset]: Trying to send email to {recipient_list} (Before mail.send)")
+        mail.send(msg)
+        logger.info(f"DEBUG EMAIL [Reset]: Successfully sent email to {recipient_list} (After mail.send)")
     except Exception as e:
-        logger.error(f"Failed to queue reset email for {to_email}: {str(e)}")
+        logger.error(f"DEBUG EMAIL ERROR: Failed to send reset email to {recipient_list}: {str(e)}", exc_info=True)
+        raise e

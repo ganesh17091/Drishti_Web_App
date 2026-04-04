@@ -2,7 +2,7 @@ import os
 import logging
 from flask import Flask, jsonify, request
 from config import Config
-from extensions import db, migrate, limiter
+from extensions import db, migrate, limiter, mail
 from flask_cors import CORS
 
 logging.basicConfig(
@@ -35,6 +35,9 @@ def create_app(config_class=Config):
     
     # Properly tie the globally used limiter to the current app 
     limiter.init_app(app)
+    
+    # Mail initialization
+    mail.init_app(app)
 
     # CORS completely handled here - temporarily allowing all origins as requested
     CORS(app, resources={r"/*": {"origins": "*"}})
