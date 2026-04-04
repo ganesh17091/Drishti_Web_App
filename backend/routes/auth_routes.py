@@ -276,25 +276,34 @@ def forgot_password():
             return jsonify({'error': 'Email is required.'}), 400
 
         user = User.query.filter_by(email=email).first()
-        if user:
-            raw_token = generate_random_token()
-            user.reset_token = hash_token(raw_token)
-            user.reset_token_expires = datetime.now(timezone.utc) + timedelta(hours=24)
-            db.session.commit()  # Safe to commit token update before email attempt
+        if not user:
+            return jsonify({"error": "User not found"}), 404
 
-            try:
-                send_reset_email(user.email, raw_token, user.name)
-            except Exception as e:
-                logger.error(f"Password reset email failed for {email}: {str(e)}")
-                # Temporarily disabling OWASP generic response to surface explicit errors during debugging
-                return jsonify(_debug_error('Failed to send reset email. Please try again.', e)), 500
+        raw_token = generate_random_token()
+        user.reset_token = hash_token(raw_token)
+        user.reset_token_expires = datetime.now(timezone.utc) + timedelta(hours=24)
+        db.session.commit()
 
-        return jsonify({'message': 'If an account exists, a reset link will be sent.'}), 200
+        from flask_mail import Message
+        from extensions import mail
+        
+        try:
+            msg = Message(
+                subject="Password Reset",
+                recipients=[email],
+                body="Reset your password"
+            )
+            mail.send(msg)
+        except Exception as e:
+            logger.error(f"Password reset email failed for {email}: {str(e)}")
+            return jsonify({"error": str(e)}), 500
+
+        return jsonify({"message": "Password reset email sent"}), 200
 
     except Exception as e:
         db.session.rollback()
         logger.error(f"Unexpected forgot-password error: {str(e)}")
-        return jsonify({'error': 'Internal server error'}), 500
+        return jsonify({'error': str(e)}), 500
 
 @auth_bp.route('/reset-password/<token>', methods=['POST'])
 @limiter.limit("5 per minute")

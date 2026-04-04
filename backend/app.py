@@ -74,15 +74,10 @@ def create_app(config_class=Config):
 
     @app.errorhandler(Exception)
     def handle_exception(e):
-        import traceback
-        logger.error(f"Unhandled Exception: {str(e)}\n{traceback.format_exc()}")
-        response = jsonify({
-            "error": "Internal Server Error",
-            "message": str(e),
+        return jsonify({
+            "error": str(e),
             "type": type(e).__name__
-        })
-        response.status_code = getattr(e, 'code', 500)
-        return response
+        }), 500
 
 
     # Routes
