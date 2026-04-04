@@ -1,6 +1,6 @@
 import os
 import logging
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from config import Config
 from extensions import db, migrate
 from flask_cors import CORS
@@ -50,16 +50,17 @@ def create_app(config_class=Config):
     db.init_app(app)
     migrate.init_app(app, db)
 
-    # CORS — intentionally no supports_credentials so wildcard origin is valid.
-    # Authorization header is passed explicitly and allowed via after_request.
-    CORS(app, resources={r"/*": {"origins": "*"}})
+    # Replace ALL existing CORS logic with:
+    CORS(app)
 
     @app.after_request
     def add_cors_headers(response):
         """Ensure CORS headers are present on every response including errors."""
-        response.headers["Access-Control-Allow-Origin"] = "*"
+        origin = request.headers.get("Origin")
+        response.headers["Access-Control-Allow-Origin"] = origin if origin else "*"
         response.headers["Access-Control-Allow-Headers"] = "Content-Type,Authorization"
         response.headers["Access-Control-Allow-Methods"] = "GET,POST,PUT,DELETE,OPTIONS"
+        logger.info("CORS headers added")
         return response
 
     # Rate limiting
@@ -97,7 +98,7 @@ def create_app(config_class=Config):
     @app.route('/', defaults={'path': ''}, methods=['OPTIONS'])
     @app.route('/<path:path>', methods=['OPTIONS'])
     def handle_options(path):
-        return jsonify({}), 200
+        return '', 200
 
     # Health routes
     @app.route('/')
