@@ -38,10 +38,13 @@ function AuthComponent() {
       ? { email, password }
       : { email, password, name };
 
-    if (!process.env.NEXT_PUBLIC_API_URL) {
-      throw new Error("NEXT_PUBLIC_API_URL is not set");
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL;
+    if (!baseUrl) {
+      setMessage({ text: "App is misconfigured: API URL is not set. Please contact support.", type: "error" });
+      return;
     }
-    const url = `${process.env.NEXT_PUBLIC_API_URL}${endpoint}`;
+    const url = `${baseUrl.replace(/\/$/, "")}${endpoint}`;
+    console.log("[Auth] Calling API:", url);
 
     try {
       const res = await fetch(url, {
@@ -68,7 +71,10 @@ function AuthComponent() {
         setIsLogin(true);
       }
     } catch (err: unknown) {
-      if (err instanceof TypeError && (err as TypeError).message === "Failed to fetch") {
+      console.error("[Auth] API error:", err);
+      // TypeError covers all network-level failures (no connection, DNS failure, etc.)
+      // regardless of the exact message text which differs between Chrome/Firefox/Safari
+      if (err instanceof TypeError) {
         setMessage({ text: "Cannot connect to the server. Please try again later.", type: "error" });
       } else {
         setMessage({ text: (err as Error).message || "An unexpected error occurred.", type: "error" });

@@ -1,3 +1,4 @@
+import logging
 from flask import Blueprint, request, jsonify
 from datetime import date, timedelta
 from collections import defaultdict
@@ -5,6 +6,8 @@ from extensions import db
 from models import UserProfile, UserActivityLog, AIRecommendation, UserSchedule, StudyPlan
 from utils.token_service import token_required
 from utils import ai_engine
+
+logger = logging.getLogger(__name__)
 
 ai_bp = Blueprint('ai', __name__, url_prefix='/ai')
 
@@ -81,21 +84,87 @@ def generate_insights(current_user):
 @ai_bp.route('/generate-schedule', methods=['POST'])
 @token_required
 def generate_schedule(current_user):
+    logger.info("[generate-schedule] Request started for user_id=%s", current_user.id)
     try:
+        # ── 1. VALIDATE: user profile must exist ────────────────────────────────
         profile = UserProfile.query.filter_by(user_id=current_user.id).first()
         if not profile:
-            return jsonify({"error": "Profile not found."}), 404
-            
-        logs = UserActivityLog.query.filter_by(user_id=current_user.id).order_by(UserActivityLog.created_at.desc()).limit(10).all()
-        
-        schedule_json = ai_engine.generate_daily_schedule(profile, logs)
+            logger.warning(
+                "[generate-schedule] No profile found for user_id=%s – returning 400",
+                current_user.id
+            )
+            return jsonify({
+                "error": "Profile not found. Please complete onboarding before generating a schedule."
+            }), 400
+
+        # ── 2. VALIDATE: at least some activity data ─────────────────────────────
+        logs = (
+            UserActivityLog.query
+            .filter_by(user_id=current_user.id)
+            .order_by(UserActivityLog.created_at.desc())
+            .limit(10)
+            .all()
+        )
+        if not logs:
+            logger.warning(
+                "[generate-schedule] No activity logs for user_id=%s – returning 400",
+                current_user.id
+            )
+            return jsonify({
+                "error": "No activity logs found. Please log at least one activity before generating a schedule."
+            }), 400
+
+        logger.info(
+            "[generate-schedule] Found profile and %d activity log(s) for user_id=%s",
+            len(logs), current_user.id
+        )
+
+        # ── 3. CALL AI API (isolated to catch API-specific failures) ─────────────
+        try:
+            schedule_json = ai_engine.generate_daily_schedule(profile, logs)
+        except Exception as api_err:
+            logger.error(
+                "[generate-schedule] AI API call failed for user_id=%s: %s",
+                current_user.id, api_err, exc_info=True
+            )
+            return jsonify({"error": "AI service failed. Please try again later."}), 500
+
+        # ── 4. VALIDATE AI RESPONSE FORMAT ──────────────────────────────────────
+        if not isinstance(schedule_json, dict):
+            logger.error(
+                "[generate-schedule] AI returned non-dict response for user_id=%s: %r",
+                current_user.id, schedule_json
+            )
+            return jsonify({"error": "AI returned an invalid response format."}), 500
+
         if "error" in schedule_json:
-            return jsonify(schedule_json), 429 if schedule_json.get("error") == "RATE_LIMIT" else 500
-        
-        # Check if schedule exists for today to update it, otherwise create new
-        sched = UserSchedule.query.filter_by(user_id=current_user.id, schedule_date=date.today()).first()
+            error_type = schedule_json.get("error")
+            logger.warning(
+                "[generate-schedule] AI engine error key detected for user_id=%s: %s",
+                current_user.id, error_type
+            )
+            status = 429 if error_type == "RATE_LIMIT" else 500
+            return jsonify(schedule_json), status
+
+        if "schedule" not in schedule_json:
+            logger.error(
+                "[generate-schedule] AI response missing 'schedule' key for user_id=%s. Keys: %s",
+                current_user.id, list(schedule_json.keys())
+            )
+            return jsonify({"error": "AI returned an incomplete schedule. Please retry."}), 500
+
+        logger.info(
+            "[generate-schedule] Valid schedule received (%d slots) for user_id=%s",
+            len(schedule_json.get("schedule", [])), current_user.id
+        )
+
+        # ── 5. PERSIST to DB ─────────────────────────────────────────────────────
+        sched = UserSchedule.query.filter_by(
+            user_id=current_user.id, schedule_date=date.today()
+        ).first()
         if sched:
             sched.schedule_data = schedule_json
+            logger.info("[generate-schedule] Updated existing schedule for user_id=%s", current_user.id)
         else:
             sched = UserSchedule(
                 user_id=current_user.id,
@@ -103,13 +172,20 @@ def generate_schedule(current_user):
                 schedule_data=schedule_json
             )
             db.session.add(sched)
-            
+            logger.info("[generate-schedule] Created new schedule for user_id=%s", current_user.id)
+
         db.session.commit()
-        
+        logger.info("[generate-schedule] Schedule saved successfully for user_id=%s", current_user.id)
+
         return jsonify(schedule_json), 200
+
     except Exception as e:
         db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+        logger.error(
+            "[generate-schedule] Unhandled exception for user_id=%s: %s",
+            current_user.id, e, exc_info=True
+        )
+        return jsonify({"error": "Failed to generate schedule. Please try again."}), 500
 
 @ai_bp.route('/recommendations', methods=['GET'])
 @token_required

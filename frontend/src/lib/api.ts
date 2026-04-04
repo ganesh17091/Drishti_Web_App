@@ -5,23 +5,20 @@
  * - Consistent headers and error handling
  */
 
-// Throw immediately if the env var is missing so misconfigured deployments
-// are caught at startup rather than causing silent "Failed to fetch" errors.
-if (!process.env.NEXT_PUBLIC_API_URL) {
-  throw new Error(
-    "NEXT_PUBLIC_API_URL is not set. " +
-    "Add it to .env.local for local development " +
-    "or set it as an environment variable in Vercel."
-  );
-}
-
-const BASE_URL: string = process.env.NEXT_PUBLIC_API_URL.replace(/\/$/, ""); // strip trailing slash
-
 /**
- * Build a full API URL from a path like "/auth/login"
+ * Build a full API URL from a path like "/auth/login".
+ * Throws clearly at runtime (not build time) if the env var is missing.
  */
 export function apiUrl(path: string): string {
-  return `${BASE_URL}${path}`;
+  const base = process.env.NEXT_PUBLIC_API_URL;
+  if (!base) {
+    throw new Error(
+      "NEXT_PUBLIC_API_URL is not set. " +
+      "Add it to .env.local for local development " +
+      "or set it as an environment variable in Vercel."
+    );
+  }
+  return `${base.replace(/\/$/, "")}${path}`;
 }
 
 type FetchOptions = RequestInit & {
@@ -32,6 +29,7 @@ type FetchOptions = RequestInit & {
  * Generic API fetch wrapper.
  * - Adds Content-Type: application/json automatically
  * - Adds Authorization header when token is provided
+ * - Logs the URL before every call (visible in browser DevTools)
  * - Throws an Error with the server's error message on non-2xx responses
  * - Catches network errors and re-throws with a helpful message
  */
@@ -51,14 +49,16 @@ export async function apiFetch<T = unknown>(
   }
 
   const url = apiUrl(path);
+  console.log("[apiFetch] Calling API:", url);
 
   let res: Response;
   try {
     res = await fetch(url, { headers, body, ...rest });
-  } catch {
+  } catch (err) {
     // Network-level error (no response from server)
+    console.error("[apiFetch] Network error reaching:", url, err);
     throw new Error(
-      "Failed to reach the server. Check your internet connection and ensure the backend is running."
+      "Cannot connect to the server. Check your internet connection and ensure the backend is running."
     );
   }
 
@@ -75,6 +75,7 @@ export async function apiFetch<T = unknown>(
       (data as Record<string, string>)?.error ||
       (data as Record<string, string>)?.message ||
       `Request failed with status ${res.status}`;
+    console.error("[apiFetch] Server error from", url, "status:", res.status, "msg:", msg);
     throw new Error(msg);
   }
 

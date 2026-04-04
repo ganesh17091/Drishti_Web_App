@@ -1,9 +1,12 @@
 import os
 import json
+import logging
 import time
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
+
+logger = logging.getLogger(__name__)
 
 def get_client():
     load_dotenv(override=True)
@@ -25,19 +28,36 @@ def _call_gemini_json(system_prompt, user_content, retries=3, delay=2):
                     temperature=0.7,
                 ),
             )
-            return json.loads(response.text)
+            try:
+                return json.loads(response.text)
+            except (json.JSONDecodeError, ValueError) as json_err:
+                logger.error(
+                    "[ai_engine] Gemini returned invalid JSON (attempt %d/%d): %s | Raw: %.500s",
+                    attempt + 1, retries, json_err, response.text
+                )
+                last_error = json_err
+                if attempt < retries - 1:
+                    time.sleep(delay)
+                continue
+
         except Exception as e:
             last_error = e
             err_str = str(e).lower()
             if "429" in err_str or "quota" in err_str or "too many requests" in err_str:
-                print("Gemini API Rate Limit hit! Aborting retries.")
-                return {"error": "RATE_LIMIT", "message": "FocusBot is currently receiving too many requests (Free Tier Limit). Please wait a moment and try again."}
+                logger.warning("[ai_engine] Gemini API rate limit hit – aborting retries.")
+                return {
+                    "error": "RATE_LIMIT",
+                    "message": "FocusBot is currently receiving too many requests (Free Tier Limit). Please wait a moment and try again."
+                }
 
-            print(f"Gemini API attempt {attempt + 1}/{retries} failed: {e}")
+            logger.warning(
+                "[ai_engine] Gemini API attempt %d/%d failed: %s",
+                attempt + 1, retries, e
+            )
             if attempt < retries - 1:
                 time.sleep(delay)
 
-    print("Gemini API permanently failed after retries:", last_error)
+    logger.error("[ai_engine] Gemini API permanently failed after %d retries. Last error: %s", retries, last_error)
     return {"error": "Failed to generate AI response. Please try again later."}
 
 def analyze_user(user_profile, activity_logs):
