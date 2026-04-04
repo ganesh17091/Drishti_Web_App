@@ -20,6 +20,35 @@ def _debug_error(msg: str, e: Exception) -> dict:
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 
+@auth_bp.route('/test-email', methods=['POST'])
+def test_email():
+    """Diagnostic endpoint to test email delivery config directly."""
+    try:
+        from extensions import mail
+        from flask_mail import Message
+        from flask import current_app
+        import os
+        
+        test_email = os.environ.get('DEBUG_TEST_EMAIL', 'your_real_email@gmail.com')
+        logger.info(f"[/test-email] Attempting test email to {test_email}")
+        
+        msg = Message(
+            subject='FocusPath Diagnostic Test',
+            sender=current_app.config.get('MAIL_DEFAULT_SENDER', 'noreply@focuspath.com'),
+            recipients=[test_email]
+        )
+        msg.body = "This is a diagnostic email from FocusPath backend to verify SMTP configuration is active and working."
+        msg.html = "<h3>FocusPath Backend</h3><p>This is a diagnostic email to verify SMTP configuration is active and working.</p>"
+        
+        logger.info(f"[/test-email] Before mail.send() to '{test_email}'")
+        mail.send(msg)
+        logger.info(f"[/test-email] After mail.send() to '{test_email}'")
+        
+        return jsonify({"message": f"Test email successfully dispatched to {test_email}"}), 200
+    except Exception as e:
+        logger.error(f"[/test-email] Failed to send email: {str(e)}", exc_info=True)
+        return jsonify(_debug_error('Email diagnostic failed.', e)), 500
+
 @auth_bp.route('/signup', methods=['POST'])
 @limiter.limit("5 per minute")
 def signup():
@@ -254,10 +283,9 @@ def forgot_password():
                 send_reset_email(user.email, raw_token, user.name)
             except Exception as e:
                 logger.error(f"Password reset email failed for {email}: {str(e)}")
-                # OWASP: Do not reveal whether account exists — return same message
-                # but internally we've logged the failure
+                # Temporarily disabling OWASP generic response to surface explicit errors during debugging
+                return jsonify(_debug_error('Failed to send reset email. Please try again.', e)), 500
 
-        # Same response regardless of outcome — prevents email enumeration
         return jsonify({'message': 'If an account exists, a reset link will be sent.'}), 200
 
     except Exception as e:

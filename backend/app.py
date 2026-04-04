@@ -39,21 +39,8 @@ def create_app(config_class=Config):
     # Mail initialization
     mail.init_app(app)
 
-    # CORS completely handled here - temporarily allowing all origins as requested
-    CORS(app, resources={r"/*": {"origins": "*"}})
-    
-    @app.after_request
-    def add_cors_headers(response):
-        origin = request.headers.get("Origin")
-        response.headers["Access-Control-Allow-Origin"] = origin if origin else "*"
-        response.headers["Access-Control-Allow-Headers"] = "Content-Type,Authorization"
-        response.headers["Access-Control-Allow-Methods"] = "GET,POST,PUT,DELETE,OPTIONS"
-        return response
-
-    @app.route('/', defaults={'path': ''}, methods=['OPTIONS'])
-    @app.route('/<path:path>', methods=['OPTIONS'])
-    def handle_options(path):
-        return '', 200
+    # Standardize CORS using Flask-CORS specifically. It handles OPTIONS natively.
+    CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
 
     # Blueprints
     from routes.auth_routes import auth_bp
@@ -80,10 +67,15 @@ def create_app(config_class=Config):
 
     @app.errorhandler(Exception)
     def handle_exception(e):
-        return {
-        "error": str(e),
-        "type": type(e).__name__
-    }, 500
+        import traceback
+        logger.error(f"Unhandled Exception: {str(e)}\n{traceback.format_exc()}")
+        response = jsonify({
+            "error": "Internal Server Error",
+            "message": str(e),
+            "type": type(e).__name__
+        })
+        response.status_code = getattr(e, 'code', 500)
+        return response
 
 
     # Routes
