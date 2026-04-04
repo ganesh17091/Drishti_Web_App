@@ -38,7 +38,7 @@ def create_app(config_class=Config):
 
     # CORS completely handled here - temporarily allowing all origins as requested
     CORS(app, resources={r"/*": {"origins": "*"}})
-
+    
     @app.after_request
     def add_cors_headers(response):
         origin = request.headers.get("Origin")
@@ -77,12 +77,11 @@ def create_app(config_class=Config):
 
     @app.errorhandler(Exception)
     def handle_exception(e):
-        logger.error(f"Unhandled Exception: {str(e)}", exc_info=True)
-        is_dev = os.environ.get("FLASK_ENV", "production").lower() == "development"
-        return jsonify({
-            "error": "Internal Server Error. Please try again later.",
-            "message": str(e) if is_dev else "An unexpected error occurred."
-        }), 500
+        return {
+        "error": str(e),
+        "type": type(e).__name__
+    }, 500
+
 
     # Routes
     @app.route('/')
