@@ -26,9 +26,9 @@ def signup():
     logger.info("[SIGNUP] Request received")
     try:
         data = request.get_json(silent=True)
-        if not data:
+        if not data or not isinstance(data, dict):
             logger.warning("[SIGNUP] Missing or malformed JSON body")
-            return jsonify({'error': 'Request body must be valid JSON.'}), 400
+            return jsonify({'error': 'Request body must be a valid JSON object.'}), 400
 
         name = data.get('name', 'User')
         email = data.get('email', '').strip().lower()
@@ -115,7 +115,9 @@ def signup():
 @limiter.limit("3 per minute")
 def resend_verification():
     try:
-        data = request.get_json()
+        data = request.get_json(silent=True)
+        if not data or not isinstance(data, dict):
+            return jsonify({'error': 'Request body must be a valid JSON object.'}), 400
         email = data.get('email', '').strip()
 
         if not email:
@@ -189,8 +191,8 @@ def login():
     logger.info("[LOGIN] Request received")
     try:
         data = request.get_json(silent=True)
-        if not data:
-            return jsonify({'error': 'Request body must be valid JSON.'}), 400
+        if not data or not isinstance(data, dict):
+            return jsonify({'error': 'Request body must be a valid JSON object.'}), 400
 
         email = (data.get('email') or '').strip().lower()
         password = data.get('password')
@@ -230,7 +232,9 @@ def login():
 @limiter.limit("3 per minute")
 def forgot_password():
     try:
-        data = request.get_json()
+        data = request.get_json(silent=True)
+        if not data or not isinstance(data, dict):
+            return jsonify({'error': 'Request body must be a valid JSON object.'}), 400
         email = data.get('email', '').strip()
 
         if not email:
@@ -264,8 +268,8 @@ def reset_password(token):
     logger.info("[RESET-PASSWORD] Request received")
     try:
         data = request.get_json(silent=True)
-        if not data:
-            return jsonify({'error': 'Request body must be valid JSON.'}), 400
+        if not data or not isinstance(data, dict):
+            return jsonify({'error': 'Request body must be a valid JSON object.'}), 400
 
         password = data.get('password')
 

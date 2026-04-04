@@ -2,10 +2,8 @@ import os
 import logging
 from flask import Flask, jsonify, request
 from config import Config
-from extensions import db, migrate
+from extensions import db, migrate, limiter
 from flask_cors import CORS
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
 
 logging.basicConfig(
     level=logging.INFO,
@@ -23,43 +21,36 @@ _REQUIRED_ENV_VARS = [
 def _validate_env():
     missing = [key for key in _REQUIRED_ENV_VARS if not os.environ.get(key, '').strip()]
     if missing:
-        raise EnvironmentError(f"Missing env vars: {', '.join(missing)}")
+        logger.warning(f"Missing env vars: {', '.join(missing)}. App might lack functionality (e.g. email sending).")
 
 def create_app(config_class=Config):
     _validate_env()
 
     app = Flask(__name__)
-    app.config.from_object(Config)
+    app.config.from_object(config_class)
 
-    # DB
+    # DB & Extensions
     db.init_app(app)
     migrate.init_app(app, db)
-
-    # CORS
-    frontend_url = os.environ.get("FRONTEND_URL")
-    CORS(app, resources={r"/*": {"origins": "*"}})
     
+    # Properly tie the globally used limiter to the current app 
+    limiter.init_app(app)
 
-    # ✅ FIX: preflight handler INSIDE create_app
-    @app.before_request
-    def handle_preflight():
-        if request.method == "OPTIONS":
-            response = app.make_default_options_response()
-            headers = response.headers
+    # CORS completely handled here
+    CORS(app)
 
-            headers["Access-Control-Allow-Origin"] = frontend_url
-            headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
-            headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+    @app.after_request
+    def add_cors_headers(response):
+        origin = request.headers.get("Origin")
+        response.headers["Access-Control-Allow-Origin"] = origin if origin else "*"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type,Authorization"
+        response.headers["Access-Control-Allow-Methods"] = "GET,POST,PUT,DELETE,OPTIONS"
+        return response
 
-            return response
-
-    # Rate limiter
-    limiter = Limiter(
-        get_remote_address,
-        app=app,
-        default_limits=["1500 per day", "200 per hour"],
-        storage_uri="memory://"
-    )
+    @app.route('/', defaults={'path': ''}, methods=['OPTIONS'])
+    @app.route('/<path:path>', methods=['OPTIONS'])
+    def handle_options(path):
+        return '', 200
 
     # Blueprints
     from routes.auth_routes import auth_bp
@@ -84,6 +75,15 @@ def create_app(config_class=Config):
     app.register_blueprint(wellbeing_bp)
     app.register_blueprint(exam_bp)
 
+    @app.errorhandler(Exception)
+    def handle_exception(e):
+        logger.error(f"Unhandled Exception: {str(e)}", exc_info=True)
+        is_dev = os.environ.get("FLASK_ENV", "production").lower() == "development"
+        return jsonify({
+            "error": "Internal Server Error. Please try again later.",
+            "message": str(e) if is_dev else "An unexpected error occurred."
+        }), 500
+
     # Routes
     @app.route('/')
     def index():
@@ -97,7 +97,7 @@ def create_app(config_class=Config):
 
     return app
 
+app = create_app()
 
 if __name__ == '__main__':
-    app = create_app()
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
