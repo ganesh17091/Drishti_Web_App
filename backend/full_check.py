@@ -94,7 +94,7 @@ else:
     warn("GOOGLE_API_KEY not set — AI features will fail!")
 
 # Check DATABASE_URL dialect fix
-from config import Config
+from app.config import Config
 db_uri = Config.SQLALCHEMY_DATABASE_URI
 if "postgresql+psycopg://" in db_uri or "sqlite:///" in db_uri:
     ok(f"DB dialect correct: {db_uri[:55]}...")
@@ -137,7 +137,7 @@ print(SEP)
 
 try:
     from app import create_app
-    from extensions import db as _db
+    from app.extensions import db as _db
     _app = create_app()
     bps = list(_app.blueprints.keys())
     ok(f"Flask app created — blueprints: {bps}")

@@ -84,7 +84,7 @@ print(SEP)
 print("  CHECK 3 — Config & DB Dialect")
 print(SEP)
 
-from config import Config
+from app.config import Config
 uri = Config.SQLALCHEMY_DATABASE_URI
 if "postgresql+psycopg://" in uri:
     ok(f"DB dialect correct (postgresql+psycopg)")
@@ -138,7 +138,7 @@ print(SEP)
 
 try:
     from app import create_app
-    from extensions import db as _db
+    from app.extensions import db as _db
     _app = create_app()
     bps = list(_app.blueprints.keys())
     ok(f"App created — Blueprints: {bps}")

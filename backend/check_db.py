@@ -93,7 +93,7 @@ print()
 print("[3] Testing via SQLAlchemy ORM (Flask app context)...")
 try:
     from app import create_app
-    from extensions import db
+    from app.extensions import db
 
     app = create_app()
     with app.app_context():
