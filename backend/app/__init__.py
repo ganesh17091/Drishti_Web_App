@@ -2,7 +2,7 @@ import os
 import logging
 from flask import Flask, jsonify, request
 from app.config import Config
-from app.extensions import db, migrate, limiter, mail
+from app.extensions import db, migrate, limiter
 from flask_cors import CORS
 
 logging.basicConfig(
@@ -12,8 +12,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 _REQUIRED_ENV_VARS = [
-    "EMAIL_USER",
-    "EMAIL_PASS",
+    "BREVO_API_KEY",
     "BACKEND_URL",
     "FRONTEND_URL",
 ]
@@ -35,9 +34,6 @@ def create_app(config_class=Config):
     
     # Properly tie the globally used limiter to the current app 
     limiter.init_app(app)
-    
-    # Mail initialization
-    mail.init_app(app)
 
     # Standardize CORS using Flask-CORS specifically.
     CORS(app, resources={r"/*": {"origins": "*"}})

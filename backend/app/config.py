@@ -29,10 +29,6 @@ class Config:
         "connect_args": {"connect_timeout": 10},
     }
 
-    # Mail settings
-    MAIL_SERVER = 'smtp.googlemail.com'
-    MAIL_PORT = 587
-    MAIL_USE_TLS = True
-    MAIL_USERNAME = os.environ.get('EMAIL_USER')
-    MAIL_PASSWORD = os.environ.get('EMAIL_PASS')
-    MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER') or os.environ.get('EMAIL_USER') or 'noreply@focuspath.com'
+    # Brevo HTTP Email API Configuration
+    BREVO_API_KEY = os.environ.get('BREVO_API_KEY')
+    MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER') or 'pawarsanika963@gmail.com'

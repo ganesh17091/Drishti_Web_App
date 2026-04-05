@@ -2,8 +2,7 @@ import os
 import logging
 from datetime import datetime, timezone, timedelta
 from flask import Blueprint, request, jsonify, redirect
-from app.extensions import db, limiter, mail
-from flask_mail import Message
+from app.extensions import db, limiter
 from app.models import User
 from app.utils.token_service import generate_random_token, hash_token, generate_jwt, token_required
 from app.utils.email_service import send_verification_email, send_reset_email
@@ -25,25 +24,19 @@ auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 def test_email():
     """Diagnostic endpoint to test email delivery config directly."""
     try:
-        from app.extensions import mail
-        from flask_mail import Message
+        from app.utils.email_service import _dispatch_brevo_email
         from flask import current_app
         import os
+        from threading import Thread
         
         test_email = os.environ.get('DEBUG_TEST_EMAIL', 'your_real_email@gmail.com')
         logger.info(f"[/test-email] Attempting test email to {test_email}")
         
-        msg = Message(
-            subject='FocusPath Diagnostic Test',
-            sender=current_app.config.get('MAIL_DEFAULT_SENDER', 'noreply@focuspath.com'),
-            recipients=[test_email]
-        )
-        msg.body = "This is a diagnostic email from FocusPath backend to verify SMTP configuration is active and working."
-        msg.html = "<h3>FocusPath Backend</h3><p>This is a diagnostic email to verify SMTP configuration is active and working.</p>"
+        sender = current_app.config.get('MAIL_DEFAULT_SENDER', 'noreply@focuspath.com')
+        html = "<h3>FocusPath Backend</h3><p>This is an HTTP diagnostic email to verify Brevo configuration is active.</p>"
         
-        logger.info(f"[/test-email] Before mail.send() to '{test_email}'")
-        mail.send(msg)
-        logger.info(f"[/test-email] After mail.send() to '{test_email}'")
+        app = current_app._get_current_object()
+        Thread(target=_dispatch_brevo_email, args=(app, "FocusPath Diagnostic Test", sender, test_email, html)).start()
         
         return jsonify({"message": f"Test email successfully dispatched to {test_email}"}), 200
     except Exception as e:
