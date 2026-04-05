@@ -302,10 +302,10 @@ export default function Dashboard() {
           ) : schedule?.error === "RATE_LIMIT" || schedule?.error?.includes("RATE_LIMIT") ? (
             <div className="glass-panel" style={{ padding: "1.5rem", borderLeft: "4px solid #ef4444", background: "rgba(239,68,68,0.05)" }}>
               <h4 style={{ margin: "0 0 0.5rem", color: "#ef4444", fontSize: "1.05rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <span>⚠️</span> API Rate Limit Exceeded
+                <span>⚠️</span> Reached Today's Limit
               </h4>
               <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-secondary)", lineHeight: 1.5 }}>
-                FocusBot hit Google's free-tier request limit (15 requests/min). Please wait 60 seconds and refresh the page to try again!
+                FocusBot hit its daily API free-tier limit. Please wait a bit and try again!
               </p>
             </div>
           ) : schedule?.error ? (

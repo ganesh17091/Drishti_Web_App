@@ -23,7 +23,7 @@ export default function ChatWidget() {
   const API = process.env.NEXT_PUBLIC_API_URL;
 
   // Computed before any conditional return — determines if we're on a public page
-  const isPublicRoute = pathname === "/" || pathname === "/auth" || pathname === "/onboarding";
+  const isPublicRoute = ["/", "/auth", "/onboarding", "/forgot-password", "/reset-password"].includes(pathname);
 
   // All hooks must be declared BEFORE any conditional return (Rules of Hooks)
   useEffect(() => {

@@ -2,7 +2,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-const PUBLIC_ROUTES = ["/", "/auth", "/onboarding"];
+const PUBLIC_ROUTES = ["/", "/auth", "/onboarding", "/forgot-password", "/reset-password"];
 
 type ExamItem = { id: number; title: string; days_left: number; emoji: string; color: string; urgency: string; type: string };
 
