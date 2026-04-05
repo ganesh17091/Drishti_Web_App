@@ -261,7 +261,7 @@ def login():
         logger.error(f"[LOGIN] Unexpected error: {str(e)}", exc_info=True)
         return jsonify(_debug_error('Internal server error.', e)), 500
 
-@auth_bp.route('/forgot_password', methods=['POST'])
+@auth_bp.route('/forgot-password', methods=['POST', 'OPTIONS'])
 def forgot_password():
     print("FORGOT PASSWORD CALLED")
 
