@@ -262,8 +262,9 @@ def login():
         return jsonify(_debug_error('Internal server error.', e)), 500
 
 @auth_bp.route('/forgot-password', methods=['POST'])
+@limiter.limit("5 per minute")
 def forgot_password():
-    print("FORGOT PASSWORD CALLED")
+    logger.info("[FORGOT PASSWORD] Called")
 
     try:
         data = request.get_json(silent=True)
@@ -272,29 +273,29 @@ def forgot_password():
             return jsonify({"error": "Invalid request body"}), 400
 
         email = data.get("email", "").strip().lower()
-        print("EMAIL:", email)
-
+        
         if not email:
             return jsonify({"error": "Email is required"}), 400
 
         user = User.query.filter_by(email=email).first()
 
         if not user:
-            return jsonify({"error": "User not found"}), 404
+            # We return 200 silently to prevent email enumeration attacks
+            return jsonify({"message": "If an account exists, a reset email will be dispatched."}), 200
 
-        msg = Message(
-            subject="Password Reset",
-            recipients=[email],
-            body="Reset your password"
-        )
+        from app.utils.token_service import generate_reset_token
+        from app.utils.email_service import send_reset_email
+        
+        raw_token = generate_reset_token(user)
+        
+        # This function is now fully asynchronous in the background thread.
+        send_reset_email(user.email, raw_token, user.name)
 
-        mail.send(msg)
-
-        return jsonify({"message": "Reset email sent"}), 200
+        return jsonify({"message": "If an account exists, a reset email will be dispatched."}), 200
 
     except Exception as e:
-        print("FORGOT PASSWORD ERROR:", str(e))
-        return jsonify({"error": str(e)}), 500
+        logger.error(f"[FORGOT PASSWORD] Internal Error: {str(e)}")
+        return jsonify({"error": "Internal processor error"}), 500
 
 @auth_bp.route('/reset-password/<token>', methods=['POST'])
 @limiter.limit("5 per minute")

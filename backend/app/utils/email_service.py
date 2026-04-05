@@ -3,6 +3,7 @@ import logging
 from flask import current_app
 from flask_mail import Message
 from app.extensions import mail
+from threading import Thread
 
 logger = logging.getLogger(__name__)
 
@@ -100,15 +101,18 @@ def send_verification_email(to_email: str, raw_token: str, user_name: str = "Use
     msg.body = plain
     msg.html = html
 
-    # 4. Wrap email sending in try/except and ensure Synchronous execution
-    try:
-        logger.info(f"DEBUG EMAIL [Verification]: Trying to send email to {recipient_list} (Before mail.send)")
-        mail.send(msg)
-        logger.info(f"DEBUG EMAIL [Verification]: Successfully sent email to {recipient_list} (After mail.send)")
-    except Exception as e:
-        logger.error(f"DEBUG EMAIL ERROR: Failed to send verification email to {recipient_list}: {str(e)}", exc_info=True)
-        # Raise exception to the caller (auth_routes) to return an error response
-        raise e
+    # Wrap sending in an asynchronous thread to prevent SMTP timeouts blocking the HTTP request
+    app = current_app._get_current_object()
+    def send_async_email(app, msg):
+        with app.app_context():
+            try:
+                logger.info(f"DEBUG EMAIL [Verification]: Trying to send async email to {recipient_list}")
+                mail.send(msg)
+                logger.info(f"DEBUG EMAIL [Verification]: Successfully sent async email to {recipient_list}")
+            except Exception as e:
+                logger.error(f"DEBUG EMAIL ERROR: Async sending failed for {recipient_list}: {str(e)}")
+
+    Thread(target=send_async_email, args=(app, msg)).start()
 
 
 def send_reset_email(to_email: str, raw_token: str, user_name: str = "User") -> None:
@@ -203,10 +207,15 @@ def send_reset_email(to_email: str, raw_token: str, user_name: str = "User") -> 
     msg.body = plain
     msg.html = html
 
-    try:
-        logger.info(f"DEBUG EMAIL [Reset]: Trying to send email to {recipient_list} (Before mail.send)")
-        mail.send(msg)
-        logger.info(f"DEBUG EMAIL [Reset]: Successfully sent email to {recipient_list} (After mail.send)")
-    except Exception as e:
-        logger.error(f"DEBUG EMAIL ERROR: Failed to send reset email to {recipient_list}: {str(e)}", exc_info=True)
-        raise e
+    # Wrap sending in an asynchronous thread to prevent SMTP timeouts blocking the HTTP request
+    app = current_app._get_current_object()
+    def send_async_email(app, msg):
+        with app.app_context():
+            try:
+                logger.info(f"DEBUG EMAIL [Reset]: Trying to send async email to {recipient_list}")
+                mail.send(msg)
+                logger.info(f"DEBUG EMAIL [Reset]: Successfully sent async email to {recipient_list}")
+            except Exception as e:
+                logger.error(f"DEBUG EMAIL ERROR: Async reset email sending failed to {recipient_list}: {str(e)}")
+
+    Thread(target=send_async_email, args=(app, msg)).start()
