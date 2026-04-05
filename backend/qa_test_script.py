@@ -109,7 +109,7 @@ def run_tests():
 
         # STEP 5: FORGOT PASSWORD
         payload_forgot = {"email": test_email}
-        res5 = client.post('/auth/forgot_password', json=payload_forgot)
+        res5 = client.post('/auth/forgot-password', json=payload_forgot)
         body5 = res5.get_json(silent=True) or {}
         
         # Like signup, we accept 200, or a handled 500

@@ -283,10 +283,15 @@ def forgot_password():
             # We return 200 silently to prevent email enumeration attacks
             return jsonify({"message": "If an account exists, a reset email will be dispatched."}), 200
 
-        from app.utils.token_service import generate_reset_token
+        from app.utils.token_service import generate_random_token, hash_token
         from app.utils.email_service import send_reset_email
+        from datetime import datetime, timedelta, timezone
+        from app.extensions import db
         
-        raw_token = generate_reset_token(user)
+        raw_token = generate_random_token()
+        user.reset_token = hash_token(raw_token)
+        user.reset_token_expires = datetime.now(timezone.utc) + timedelta(days=1)
+        db.session.commit()
         
         # This function is now fully asynchronous in the background thread.
         send_reset_email(user.email, raw_token, user.name)
