@@ -24,7 +24,7 @@ def _call_gemini_json(system_prompt, user_content, retries=3, delay=2):
         try:
             client = get_client()
             response = client.models.generate_content(
-                model='gemini-1.5-flash',
+                model='gemini-2.0-flash',
                 contents=user_content,
                 config=types.GenerateContentConfig(
                     system_instruction=system_prompt,

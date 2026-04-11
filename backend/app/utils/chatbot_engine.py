@@ -122,7 +122,7 @@ def generate_chat_response(user, message, profile, logs, schedule, chat_history)
         try:
             client = get_chat_client()
             response = client.models.generate_content(
-                model="gemini-1.5-flash",
+                model="gemini-2.0-flash",
                 contents=contents,
                 config=types.GenerateContentConfig(
                     system_instruction=full_system,
