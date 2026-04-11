@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 
 export default function Recommendations() {
@@ -7,27 +7,54 @@ export default function Recommendations() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [slowLoad, setSlowLoad] = useState(false);
 
-  useEffect(() => {
+  const fetchRecs = useCallback(() => {
     const token = localStorage.getItem("token");
     if (!token) { router.push("/auth"); return; }
 
     const API = process.env.NEXT_PUBLIC_API_URL;
-    console.log("[Recommendations] Calling API:", `${API}/ai/recommendations`);
+    setLoading(true);
+    setError("");
+    setData(null);
+    setSlowLoad(false);
+
+    // After 5 seconds, hint that the server may be waking up (Render cold start)
+    const slowTimer = setTimeout(() => setSlowLoad(true), 5000);
+
     fetch(`${API}/ai/recommendations`, {
       headers: { Authorization: `Bearer ${token}` },
     })
-      .then(r => r.json())
-      .then(d => { setData(d); setLoading(false); })
+      .then(async r => {
+        const d = await r.json();
+        // Surface error even if HTTP status was 200
+        if (d.error) {
+          const isRateLimit = d.error === "RATE_LIMIT" || r.status === 429;
+          setError(
+            isRateLimit
+              ? "⚠️ API rate limit reached (free tier). Please wait a minute and try again."
+              : `❌ ${d.message || d.error}`
+          );
+        } else {
+          setData(d);
+        }
+      })
       .catch(err => {
-        console.error("[Recommendations] API error:", err);
-        const msg = err instanceof TypeError && err.message === "Failed to fetch"
-          ? "Cannot connect to the server. Please check your internet connection."
-          : err.message;
-        setError(msg);
+        const isFetchFail = err instanceof TypeError && err.message === "Failed to fetch";
+        setError(
+          isFetchFail
+            ? "⚠️ Cannot connect to the server. The backend may be waking up — please try again in 30 seconds."
+            : `❌ ${err.message}`
+        );
+      })
+      .finally(() => {
+        clearTimeout(slowTimer);
+        setSlowLoad(false);
         setLoading(false);
       });
-  }, []);
+  }, [router]);
+
+  useEffect(() => { fetchRecs(); }, [fetchRecs]);
 
   return (
     <main style={{ padding: "3rem 2rem", maxWidth: "900px", margin: "0 auto" }}>
@@ -39,10 +66,34 @@ export default function Recommendations() {
 
       {loading ? (
         <div className="glass-panel animate-fade-in" style={{ textAlign: "center", padding: "4rem" }}>
-          🧠 Gemini is curating your personal learning roadmap...
+          <div style={{ marginBottom: "1rem", fontSize: "1.5rem" }}>🧠</div>
+          <p style={{ margin: 0, color: "var(--text-primary)" }}>
+            Gemini is curating your personal learning roadmap...
+          </p>
+          {slowLoad && (
+            <p style={{ marginTop: "1rem", fontSize: "0.85rem", color: "var(--text-secondary)" }}>
+              ⏳ The server is warming up (free tier cold start). This may take 30–60 seconds...
+            </p>
+          )}
         </div>
       ) : error ? (
-        <div className="glass-panel" style={{ color: "#ef4444" }}>{error}</div>
+        <div className="glass-panel animate-fade-in" style={{
+          padding: "2rem", borderLeft: "4px solid #ef4444",
+          background: "rgba(239,68,68,0.06)"
+        }}>
+          <p style={{ margin: "0 0 1.25rem", color: "#ef4444" }}>{error}</p>
+          <button
+            onClick={fetchRecs}
+            style={{
+              padding: "10px 22px", background: "rgba(139,92,246,0.15)",
+              border: "1px solid rgba(139,92,246,0.35)", borderRadius: "8px",
+              color: "var(--primary)", cursor: "pointer",
+              fontFamily: "Outfit, sans-serif", fontWeight: 600, fontSize: "0.9rem"
+            }}
+          >
+            🔄 Retry
+          </button>
+        </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
 

@@ -90,6 +90,9 @@ def execute_action(current_user, action):
                 return {"error": "Profile not found."}
 
             new_recs = ai_engine.generate_resource_links(profile)
+            if isinstance(new_recs, dict) and "error" in new_recs:
+                return {"error": new_recs.get("message", "AI rate limit hit. Try again shortly.")}
+
             db.session.add(AIRecommendation(
                 user_id=current_user.id,
                 recommendation_type="resource_links",

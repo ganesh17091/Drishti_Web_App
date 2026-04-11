@@ -5,6 +5,10 @@ import time
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
+try:
+    from google.api_core.exceptions import ResourceExhausted
+except ImportError:
+    ResourceExhausted = None
 
 logger = logging.getLogger(__name__)
 
@@ -43,11 +47,19 @@ def _call_gemini_json(system_prompt, user_content, retries=3, delay=2):
         except Exception as e:
             last_error = e
             err_str = str(e).lower()
-            if "429" in err_str or "quota" in err_str or "too many requests" in err_str:
+            is_rate_limit = (
+                (ResourceExhausted is not None and isinstance(e, ResourceExhausted))
+                or "429" in err_str
+                or "quota" in err_str
+                or "resource_exhausted" in err_str
+                or "too many requests" in err_str
+                or "rate_limit" in err_str
+            )
+            if is_rate_limit:
                 logger.warning("[ai_engine] Gemini API rate limit hit – aborting retries.")
                 return {
                     "error": "RATE_LIMIT",
-                    "message": "FocusBot is currently receiving too many requests (Free Tier Limit). Please wait a moment and try again."
+                    "message": "FocusBot has hit its free-tier API limit. Please wait a minute and try again."
                 }
 
             logger.warning(

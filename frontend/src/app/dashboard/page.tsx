@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip,
@@ -42,69 +42,93 @@ export default function Dashboard() {
   const [insights, setInsights] = useState<InsightData | null>(null);
   const [schedLoading, setSchedLoading] = useState(true);
   const [insightsLoading, setInsightsLoading] = useState(true);
+  const [schedSlowLoad, setSchedSlowLoad] = useState(false);
 
   const token = () => localStorage.getItem("token");
   const API = process.env.NEXT_PUBLIC_API_URL;
 
-  useEffect(() => {
+  const loadData = useCallback(() => {
     const t = token();
     if (!t) { router.push("/auth"); return; }
 
-    const loadData = () => {
-      setSchedLoading(true);
+    setSchedLoading(true);
+    setSchedule(null);
+    setSchedSlowLoad(false);
 
-      // Step 1: Check if today's schedule already exists
-      console.log("[Dashboard] Calling API:", `${API}/ai/schedule/today`);
-      fetch(`${API}/ai/schedule/today`, {
-        headers: { Authorization: `Bearer ${t}` },
+    // Cold-start hint after 6 seconds
+    const slowTimer = setTimeout(() => setSchedSlowLoad(true), 6000);
+
+    // Step 1: Check if today's schedule already exists
+    fetch(`${API}/ai/schedule/today`, {
+      headers: { Authorization: `Bearer ${t}` },
+    })
+      .then(r => {
+        if (r.status === 401) { router.push("/auth"); return null; }
+        if (r.status === 404) { router.push("/onboarding"); return null; }
+        return r.json();
       })
-        .then(r => {
-          if (r.status === 401) { router.push("/auth"); return null; }
-          if (r.status === 404) { router.push("/onboarding"); return null; }
-          return r.json();
-        })
-        .then(d => {
-          if (!d) return;
-          // If today's schedule has content, use it directly
-          if (d.schedule && d.schedule.length > 0) {
-            setSchedule(d);
-            setSchedLoading(false);
-          } else {
-            // Step 2: No schedule yet — generate one via Gemini
-            console.log("[Dashboard] Calling API:", `${API}/ai/generate-schedule`);
-            fetch(`${API}/ai/generate-schedule`, {
-              method: "POST",
-              headers: { Authorization: `Bearer ${t}` },
+      .then(d => {
+        if (!d) return;
+        if (d.schedule && d.schedule.length > 0) {
+          setSchedule(d);
+          setSchedLoading(false);
+          clearTimeout(slowTimer);
+          setSchedSlowLoad(false);
+        } else {
+          // Step 2: Generate fresh schedule via Gemini
+          fetch(`${API}/ai/generate-schedule`, {
+            method: "POST",
+            headers: { Authorization: `Bearer ${t}` },
+          })
+            .then(async r => {
+              const body = await r.json();
+              if (r.status === 400) {
+                // No activity logs — show actionable message
+                setSchedule({ error: body.error || "Please log at least one activity before generating a schedule." });
+              } else if (r.status === 429 || body?.error === "RATE_LIMIT") {
+                setSchedule({
+                  error: "RATE_LIMIT",
+                  message: body?.message || "API rate limit reached. Please wait a minute and try again.",
+                });
+              } else if (!r.ok) {
+                setSchedule({ error: body?.error || `Server error (${r.status}). Please try again.` });
+              } else {
+                setSchedule(body);
+              }
             })
-              .then(r => {
-                if (r.status === 404) { router.push("/onboarding"); return null; }
-                return r.json();
-              })
-              .then(d => { if (d) setSchedule(d); })
-              .catch(() => {})
-              .finally(() => setSchedLoading(false));
-          }
-        })
-        .catch(() => setSchedLoading(false));
-
-      // Fetch insights (non-blocking, silent error)
-      console.log("[Dashboard] Calling API:", `${API}/ai/insights`);
-      fetch(`${API}/ai/insights`, {
-        headers: { Authorization: `Bearer ${t}` },
+            .catch(() => {
+              setSchedule({ error: "Cannot reach the server. The backend may be waking up — please retry in 30 seconds." });
+            })
+            .finally(() => {
+              clearTimeout(slowTimer);
+              setSchedSlowLoad(false);
+              setSchedLoading(false);
+            });
+        }
       })
-        .then(r => r.json())
-        .then(d => { if (!d.error) setInsights(d); })
-        .catch(() => {})
-        .finally(() => setInsightsLoading(false));
-    };
+      .catch(() => {
+        clearTimeout(slowTimer);
+        setSchedSlowLoad(false);
+        setSchedule({ error: "Cannot reach the server. Please check your connection and retry." });
+        setSchedLoading(false);
+      });
 
+    // Fetch insights (non-blocking)
+    setInsightsLoading(true);
+    fetch(`${API}/ai/insights`, {
+      headers: { Authorization: `Bearer ${t}` },
+    })
+      .then(r => r.json())
+      .then(d => { if (!d.error) setInsights(d); })
+      .catch(() => {})
+      .finally(() => setInsightsLoading(false));
+  }, [router, API]);
+
+  useEffect(() => {
     loadData();
-
-    // Hot-reload the dashboard silently whenever FocusBot takes an action
     window.addEventListener("focuspath:update", loadData);
     return () => window.removeEventListener("focuspath:update", loadData);
-
-  }, [router]);
+  }, [loadData]);
 
   return (
     <div style={{ display: "flex", gap: "2rem", padding: "2.5rem 2rem", maxWidth: "1400px", margin: "0 auto", minHeight: "calc(100vh - 72px)" }}>
@@ -285,7 +309,14 @@ export default function Dashboard() {
           )}
 
           {schedLoading ? (
-            <p style={{ textAlign: "center", color: "var(--text-secondary)" }}>Gemini is building your schedule...</p>
+            <div style={{ textAlign: "center", padding: "1.5rem 0" }}>
+              <p style={{ color: "var(--text-secondary)", margin: 0 }}>Gemini is building your schedule...</p>
+              {schedSlowLoad && (
+                <p style={{ color: "var(--text-secondary)", fontSize: "0.8rem", marginTop: "0.75rem", opacity: 0.7 }}>
+                  ⏳ Server is waking up (free tier cold start) — this may take 30–60 seconds...
+                </p>
+              )}
+            </div>
           ) : schedule?.schedule ? (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "1rem" }}>
               {schedule.schedule.map((item: any, idx: number) => (
@@ -299,23 +330,43 @@ export default function Dashboard() {
                 </div>
               ))}
             </div>
-          ) : schedule?.error === "RATE_LIMIT" || schedule?.error?.includes("RATE_LIMIT") ? (
-            <div className="glass-panel" style={{ padding: "1.5rem", borderLeft: "4px solid #ef4444", background: "rgba(239,68,68,0.05)" }}>
+          ) : schedule?.error === "RATE_LIMIT" ? (
+            <div style={{ padding: "1.5rem", borderLeft: "4px solid #ef4444", background: "rgba(239,68,68,0.05)", borderRadius: "8px" }}>
               <h4 style={{ margin: "0 0 0.5rem", color: "#ef4444", fontSize: "1.05rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <span>⚠️</span> Reached Today's Limit
+                <span>⚠️</span> Free-Tier Rate Limit Reached
               </h4>
-              <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-secondary)", lineHeight: 1.5 }}>
-                FocusBot hit its daily API free-tier limit. Please wait a bit and try again!
+              <p style={{ margin: "0 0 1rem", fontSize: "0.85rem", color: "var(--text-secondary)", lineHeight: 1.5 }}>
+                {schedule?.message || "FocusBot hit its daily API free-tier limit. Please wait a bit and try again!"}
               </p>
+              <button onClick={loadData} style={{
+                padding: "8px 18px", background: "rgba(239,68,68,0.12)",
+                border: "1px solid rgba(239,68,68,0.35)", borderRadius: "8px",
+                color: "#ef4444", cursor: "pointer",
+                fontFamily: "Outfit, sans-serif", fontWeight: 600, fontSize: "0.85rem"
+              }}>🔄 Try Again</button>
             </div>
           ) : schedule?.error ? (
-             <div className="glass-panel" style={{ padding: "1.5rem", borderLeft: "4px solid #f59e0b", background: "rgba(245,158,11,0.05)" }}>
+            <div style={{ padding: "1.5rem", borderLeft: "4px solid #f59e0b", background: "rgba(245,158,11,0.05)", borderRadius: "8px" }}>
               <h4 style={{ margin: "0 0 0.5rem", color: "#f59e0b", fontSize: "1.05rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <span>⚠️</span> AI Generation Failed
+                <span>⚠️</span> Schedule Unavailable
               </h4>
-              <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--text-secondary)", lineHeight: 1.5 }}>
+              <p style={{ margin: "0 0 1rem", fontSize: "0.85rem", color: "var(--text-secondary)", lineHeight: 1.5 }}>
                 {schedule.error}
               </p>
+              <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+                <button onClick={loadData} style={{
+                  padding: "8px 18px", background: "rgba(245,158,11,0.12)",
+                  border: "1px solid rgba(245,158,11,0.35)", borderRadius: "8px",
+                  color: "#f59e0b", cursor: "pointer",
+                  fontFamily: "Outfit, sans-serif", fontWeight: 600, fontSize: "0.85rem"
+                }}>🔄 Retry</button>
+                <button onClick={() => router.push("/log-activity")} style={{
+                  padding: "8px 18px", background: "rgba(139,92,246,0.12)",
+                  border: "1px solid rgba(139,92,246,0.35)", borderRadius: "8px",
+                  color: "var(--primary)", cursor: "pointer",
+                  fontFamily: "Outfit, sans-serif", fontWeight: 600, fontSize: "0.85rem"
+                }}>⚡ Log Activity</button>
+              </div>
             </div>
           ) : (
             <p style={{ color: "var(--text-secondary)" }}>Schedule unavailable. Check your profile is complete.</p>

@@ -62,33 +62,53 @@ export default function ChatWidget() {
     setInput(""); setLoading(true);
 
     try {
-      console.log("[ChatWidget] Calling API:", `${API}/chat/message`);
       const res = await fetch(`${API}/chat/message`, {
         method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${t}` },
         body: JSON.stringify({ message: msgText }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+
+      // Detect rate-limit by HTTP status OR by the error key in the body
+      const isRateLimit =
+        res.status === 429 ||
+        data?.error === "RATE_LIMIT" ||
+        (typeof data?.error === "string" && (
+          data.error.toLowerCase().includes("quota") ||
+          data.error.toLowerCase().includes("rate")
+        ));
+
+      if (isRateLimit) {
+        setMessages(prev => [...prev, {
+          role: "assistant",
+          message: `⚠️ ${data?.message || "FocusBot has hit its free-tier API limit. Please wait a minute and try again."}`,
+        }]);
+        return;
+      }
+
+      if (!res.ok) throw new Error(data?.error || `Server error (${res.status})`);
 
       setMessages(prev => [...prev, { role: "assistant", message: data.reply }]);
       if (data.action?.type && !data.action_result?.error) {
         setActionToast(ACTION_LABELS[data.action.type] || "✨ Action Performed");
-        // Force a tiny reload delay to let the UI fetch updated data if needed
         if (["update_schedule", "add_task"].includes(data.action.type)) {
             setTimeout(() => window.dispatchEvent(new Event("focuspath:update")), 1000);
         }
       }
+      // Surface action errors as a follow-up assistant message
+      if (data.action_result?.error) {
+        setMessages(prev => [...prev, {
+          role: "assistant",
+          message: `⚠️ Action failed: ${data.action_result.error}`,
+        }]);
+      }
     } catch (err: unknown) {
       const msg = (err as Error)?.message || "";
-      const isRateLimit = msg.includes("429") || msg.toLowerCase().includes("quota");
       const isFetchFail = err instanceof TypeError && msg === "Failed to fetch";
       setMessages(prev => [...prev, {
         role: "assistant",
-        message: isRateLimit
-          ? "⚠️ I'm receiving too many requests right now. Please wait a minute and try again."
-          : isFetchFail
-          ? "⚠️ Cannot reach the server. Check your internet connection."
-          : "⚠️ Something went wrong.",
+        message: isFetchFail
+          ? "⚠️ Cannot reach the server. The backend may be waking up — please wait 30 seconds and try again."
+          : `⚠️ Something went wrong: ${msg || "Please try again."}`,
       }]);
       console.error("[ChatWidget] API Error:", err);
     } finally {

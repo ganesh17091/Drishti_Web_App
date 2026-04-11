@@ -5,6 +5,10 @@ from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 from datetime import date
+try:
+    from google.api_core.exceptions import ResourceExhausted
+except ImportError:
+    ResourceExhausted = None
 
 def get_chat_client():
     load_dotenv(override=True)

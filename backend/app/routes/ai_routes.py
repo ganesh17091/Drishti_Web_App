@@ -73,7 +73,13 @@ def generate_insights(current_user):
         logs = UserActivityLog.query.filter_by(user_id=current_user.id).order_by(UserActivityLog.created_at.desc()).limit(20).all()
         
         insights = ai_engine.analyze_user(profile, logs)
-        
+
+        if isinstance(insights, dict) and "error" in insights:
+            error_type = insights.get("error")
+            status = 429 if error_type == "RATE_LIMIT" else 500
+            logger.warning("[generate-insights] AI error for user_id=%s: %s", current_user.id, error_type)
+            return jsonify(insights), status
+
         rec = AIRecommendation(
             user_id=current_user.id,
             recommendation_type="insights",
@@ -81,7 +87,7 @@ def generate_insights(current_user):
         )
         db.session.add(rec)
         db.session.commit()
-        
+
         return jsonify(insights), 200
     except Exception as e:
         db.session.rollback()
