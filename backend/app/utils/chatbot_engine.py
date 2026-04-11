@@ -142,9 +142,17 @@ def generate_chat_response(user, message, profile, logs, schedule, chat_history)
 
         except Exception as e:
             err_str = str(e).lower()
-            if "429" in err_str or "quota" in err_str or "too many requests" in err_str:
+            is_rate_limit = (
+                (ResourceExhausted is not None and isinstance(e, ResourceExhausted))
+                or "429" in err_str
+                or "quota" in err_str
+                or "resource_exhausted" in err_str
+                or "too many requests" in err_str
+                or "rate_limit" in err_str
+            )
+            if is_rate_limit:
                 return {
-                    "reply": "⚠️ FocusBot is currently experiencing high traffic (API rate limit). Please wait a minute and try asking again!",
+                    "reply": "⚠️ FocusBot has hit its free-tier API limit. Please wait a minute and try again!",
                     "action": None
                 }
 
