@@ -309,7 +309,8 @@ def refresh_resource_links(current_user):
 @ai_bp.route('/insights', methods=['GET'])
 @token_required
 def get_insights(current_user):
-    """Computes full performance stats + AI analysis for the insights dashboard."""
+    """Computes full performance stats + AI analysis for the insights dashboard.
+    Stats (hours, sessions, chart) are always live. AI analysis is cached per day."""
     try:
         profile = UserProfile.query.filter_by(user_id=current_user.id).first()
         if not profile:
@@ -359,9 +360,37 @@ def get_insights(current_user):
         plans_done = StudyPlan.query.filter_by(user_id=current_user.id, status='completed').count()
         plans_pending = StudyPlan.query.filter_by(user_id=current_user.id, status='pending').count()
 
-        # AI Analysis using Gemini (last 20 logs)
-        recent_logs = sorted(all_logs, key=lambda l: l.created_at, reverse=True)[:20]
-        ai_analysis = ai_engine.analyze_user(profile, recent_logs)
+        # ── AI Analysis: cached per day to avoid hitting rate limits on every page load ──
+        today_str = date.today().isoformat()
+        cached_analysis = AIRecommendation.query.filter_by(
+            user_id=current_user.id,
+            recommendation_type="insights_daily"
+        ).order_by(AIRecommendation.created_at.desc()).first()
+
+        ai_analysis = None
+        # Use cache if it was generated today
+        if cached_analysis and cached_analysis.created_at.date() == date.today():
+            ai_analysis = cached_analysis.content
+            logger.info("[insights] Using cached AI analysis for user_id=%s date=%s", current_user.id, today_str)
+        else:
+            # Only call Gemini if no cache for today AND there are logs to analyze
+            if all_logs:
+                recent_logs = sorted(all_logs, key=lambda l: l.created_at, reverse=True)[:20]
+                ai_analysis = ai_engine.analyze_user(profile, recent_logs)
+
+                if isinstance(ai_analysis, dict) and "error" not in ai_analysis:
+                    # Save to cache
+                    db.session.add(AIRecommendation(
+                        user_id=current_user.id,
+                        recommendation_type="insights_daily",
+                        content=ai_analysis
+                    ))
+                    db.session.commit()
+                    logger.info("[insights] Fresh AI analysis cached for user_id=%s", current_user.id)
+                elif isinstance(ai_analysis, dict) and ai_analysis.get("error") == "RATE_LIMIT":
+                    # If rate limited, still return stats without AI analysis
+                    logger.warning("[insights] Rate limit hit for AI analysis, returning stats only for user_id=%s", current_user.id)
+                    ai_analysis = None
 
         return jsonify({
             "stats": {
@@ -379,3 +408,4 @@ def get_insights(current_user):
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
+
