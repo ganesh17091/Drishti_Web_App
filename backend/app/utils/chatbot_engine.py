@@ -2,17 +2,20 @@ import os
 import json
 import time
 from dotenv import load_dotenv
-from google import genai
-from google.genai import types
+from openai import OpenAI, RateLimitError
 from datetime import date
-try:
-    from google.api_core.exceptions import ResourceExhausted
-except ImportError:
-    ResourceExhausted = None
+
+BYTEZ_MODEL = "meta-llama/Llama-3.2-3B-Instruct"
+BYTEZ_BASE_URL = "https://api.bytez.com/models/v2/openai/v1"
+
 
 def get_chat_client():
     load_dotenv(override=True)
-    return genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
+    return OpenAI(
+        api_key=os.getenv("BYTEZ_API_KEY"),
+        base_url=BYTEZ_BASE_URL,
+    )
+
 
 SYSTEM_PROMPT = """You are FocusBot — a personal AI career mentor and study assistant built into FocusPath.
 
@@ -22,40 +25,29 @@ Your job is to:
 2. Help the user stay on track with their goals
 3. Adjust their schedule, tasks, or recommendations when they ask
 
-CRITICAL: You MUST respond ONLY with valid JSON in this exact format — no extra text, no markdown:
+CRITICAL: You MUST respond ONLY with valid JSON — no markdown, no extra text:
 
 If just conversing:
-{
-  "reply": "Your natural conversational response here",
-  "action": null
-}
+{"reply": "Your natural conversational response here", "action": null}
 
 If the user wants to make a change:
-{
-  "reply": "Done! I've [description of what you did]...",
-  "action": {
-    "type": "update_schedule | add_task | modify_goals | regenerate_recommendations",
-    "data": {}
-  }
-}
+{"reply": "Done! I've [description]...", "action": {"type": "update_schedule | add_task | modify_goals | regenerate_recommendations", "data": {}}}
 
-Action types and their exact data schemas:
-- update_schedule: {"request": "Specific user modification requests, e.g. 'Add 2 hours of football'"}
-- add_task: {"task": "task name string", "deadline": "YYYY-MM-DD", "allocated_hours": 1.0}
+Action types and data schemas:
+- update_schedule: {"request": "specific modification e.g. 'Add 2 hours of football'"}
+- add_task: {"task": "task name", "deadline": "YYYY-MM-DD", "allocated_hours": 1.0}
 - modify_goals: {"goals": "updated goals text", "interests": "updated interests"}
-- regenerate_recommendations: {} (no data needed — system will fetch fresh resources)
+- regenerate_recommendations: {}
 
 Rules:
 - NEVER give generic advice. Always reference the user's specific goals, interests, and schedule.
-- Be conversational, warm, motivating, and concise (2-4 sentences unless detail is explicitly requested).
+- Be conversational, warm, motivating, and concise (2-4 sentences unless detail is requested).
 - If asked to add a task without a deadline, use tomorrow's date.
-- If the user's question is unclear, ask a short clarifying question.
-- Always sign off responses with encouragement when relevant.
+- Always sign off with encouragement when relevant.
 """
 
 
 def _build_context_block(user, profile, logs, schedule):
-    """Constructs a rich context block injected into every system prompt."""
     profile_summary = "No profile completed yet — user hasn't done onboarding."
     if profile:
         profile_summary = (
@@ -99,40 +91,37 @@ def _build_context_block(user, profile, logs, schedule):
 
 def generate_chat_response(user, message, profile, logs, schedule, chat_history):
     """
-    Core chatbot function using Gemini multi-turn format.
+    Core chatbot function using Bytez API (OpenAI-compatible multi-turn format).
     Returns: {"reply": "...", "action": None | {...}}
     """
     context_block = _build_context_block(user, profile, logs, schedule)
     full_system = SYSTEM_PROMPT + context_block
 
-    # Build Gemini-format multi-turn conversation history
-    contents = []
-    for chat in chat_history[-20:]:  # last 20 messages for context window
-        role = "user" if chat.role == "user" else "model"
-        contents.append(
-            types.Content(role=role, parts=[types.Part(text=chat.message)])
-        )
-
-    # Append the new user message
-    contents.append(
-        types.Content(role="user", parts=[types.Part(text=message)])
-    )
+    # Build multi-turn message history
+    messages = [{"role": "system", "content": full_system}]
+    for chat in chat_history[-20:]:
+        role = "user" if chat.role == "user" else "assistant"
+        messages.append({"role": role, "content": chat.message})
+    messages.append({"role": "user", "content": message})
 
     for attempt in range(3):
         try:
             client = get_chat_client()
-            response = client.models.generate_content(
-                model="gemini-2.0-flash",
-                contents=contents,
-                config=types.GenerateContentConfig(
-                    system_instruction=full_system,
-                    response_mime_type="application/json",
-                    temperature=0.85,
-                ),
+            response = client.chat.completions.create(
+                model=BYTEZ_MODEL,
+                messages=messages,
+                temperature=0.85,
             )
-            result = json.loads(response.text)
+            raw = response.choices[0].message.content
 
-            # Sanitize output
+            # Strip markdown fences (open-source models often wrap JSON in ```)
+            cleaned = raw.strip()
+            if cleaned.startswith("```"):
+                parts = cleaned.split("```")
+                cleaned = parts[1].lstrip("json").strip() if len(parts) >= 3 else cleaned
+            
+            result = json.loads(cleaned)
+
             if "reply" not in result or not result["reply"]:
                 result["reply"] = "I'm here to help! Could you rephrase that?"
             if "action" not in result:
@@ -140,22 +129,26 @@ def generate_chat_response(user, message, profile, logs, schedule, chat_history)
 
             return result
 
+        except RateLimitError:
+            return {
+                "reply": "⚠️ FocusBot has hit its API rate limit. Please wait a minute and try again!",
+                "action": None
+            }
+
+        except (json.JSONDecodeError, ValueError):
+            # Model returned non-JSON — treat as plain text reply
+            if attempt == 2:
+                return {"reply": raw.strip() if raw else "I'm here to help!", "action": None}
+            time.sleep(1.5)
+            continue
+
         except Exception as e:
             err_str = str(e).lower()
-            is_rate_limit = (
-                (ResourceExhausted is not None and isinstance(e, ResourceExhausted))
-                or "429" in err_str
-                or "quota" in err_str
-                or "resource_exhausted" in err_str
-                or "too many requests" in err_str
-                or "rate_limit" in err_str
-            )
-            if is_rate_limit:
+            if "rate" in err_str or "429" in err_str or "quota" in err_str:
                 return {
-                    "reply": "⚠️ FocusBot has hit its free-tier API limit. Please wait a minute and try again!",
+                    "reply": "⚠️ FocusBot has hit its API rate limit. Please wait a minute and try again!",
                     "action": None
                 }
-
             print(f"FocusBot attempt {attempt + 1}/3 failed: {e}")
             if attempt < 2:
                 time.sleep(1.5)
