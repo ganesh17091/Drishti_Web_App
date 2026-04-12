@@ -13,18 +13,27 @@ BYTEZ_BASE_URL = "https://api.bytez.com/models/v2/openai/v1"
 
 def get_client():
     load_dotenv(override=True)
-    return OpenAI(
-        api_key=os.getenv("BYTEZ_API_KEY"),
-        base_url=BYTEZ_BASE_URL,
-    )
+    api_key = os.getenv("BYTEZ_API_KEY")
+    if not api_key:
+        raise EnvironmentError(
+            "BYTEZ_API_KEY is not set. Add it to your .env file."
+        )
+    return OpenAI(api_key=api_key, base_url=BYTEZ_BASE_URL)
 
 
-def _call_ai_json(system_prompt, user_content, retries=3, delay=2):
+def _call_ai_json(system_prompt, user_content, retries=3, delay=1):
     """Calls Bytez LLM and parses the JSON response. Retries on transient failures."""
     last_error = None
+
+    # Fix #2: create client once before the retry loop
+    try:
+        client = get_client()
+    except EnvironmentError as env_err:
+        logger.error("[ai_engine] %s", env_err)
+        return {"error": str(env_err)}
+
     for attempt in range(retries):
         try:
-            client = get_client()
             response = client.chat.completions.create(
                 model=BYTEZ_MODEL,
                 messages=[
@@ -35,11 +44,12 @@ def _call_ai_json(system_prompt, user_content, retries=3, delay=2):
             )
             raw = response.choices[0].message.content
 
-            # Strip markdown fences if model wraps output in ```json ... ```
+            # Fix #1: correctly strip markdown fences (e.g. ```json ... ```)
             cleaned = raw.strip()
             if cleaned.startswith("```"):
-                cleaned = cleaned.split("```", 2)[-1] if cleaned.count("```") >= 2 else cleaned
-                cleaned = cleaned.lstrip("json").strip().rstrip("```").strip()
+                parts = cleaned.split("```")
+                # parts[1] is the content between the first and second fence
+                cleaned = parts[1].lstrip("json").strip() if len(parts) >= 3 else cleaned
 
             try:
                 return json.loads(cleaned)
@@ -122,6 +132,12 @@ def generate_daily_schedule(user_profile, activity_logs, user_request=None):
             "You MUST incorporate it into the schedule."
         )
     user_info = f"Goal/Profile context: {json.dumps(profile_data)}"
+    if activity_logs:
+        logs_data = [
+            {"type": log.activity_type, "desc": log.description, "duration": log.duration_minutes}
+            for log in activity_logs
+        ]
+        user_info += f"\nRecent activity: {json.dumps(logs_data)}"
     return _call_ai_json(sys_prompt, user_info)
 
 

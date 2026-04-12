@@ -34,6 +34,11 @@ def execute_action(current_user, action):
             user_request = data.get("request")
             schedule_json = ai_engine.generate_daily_schedule(profile, logs, user_request)
 
+            # Fix #4: validate AI response before storing — never write error/garbage to DB
+            if not isinstance(schedule_json, dict) or "error" in schedule_json or "schedule" not in schedule_json:
+                error_msg = schedule_json.get("message") if isinstance(schedule_json, dict) else None
+                return {"error": error_msg or "AI failed to generate a valid schedule. Please try again."}
+
             # Upsert: delete today's existing schedule first
             existing = UserSchedule.query.filter_by(
                 user_id=current_user.id, schedule_date=date.today()

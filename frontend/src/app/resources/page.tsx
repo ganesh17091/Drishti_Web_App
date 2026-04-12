@@ -50,7 +50,7 @@ export default function Resources() {
     } catch (e: unknown) {
       const msg = (e as Error)?.message || "";
       if (msg === "RATE_LIMIT" || msg?.includes("too many requests")) {
-          setError("⚠️ API Rate Limit Exceeded: FocusBot hit Google's free-tier request limit (15 requests/min). Please wait 60 seconds and refresh!");
+          setError("⚠️ API Rate Limit Exceeded: FocusBot has hit the Bytez API rate limit. Please wait 60 seconds and refresh!");
       } else if (e instanceof TypeError && msg === "Failed to fetch") {
           setError("Cannot connect to the server. Please check your internet connection.");
       } else {
@@ -79,7 +79,7 @@ export default function Resources() {
     } catch (e: unknown) {
       const msg = (e as Error)?.message || "";
       if (msg === "RATE_LIMIT" || msg?.includes("too many requests")) {
-          setError("⚠️ API Rate Limit Exceeded: FocusBot hit Google's free-tier request limit (15 requests/min). Please wait 60 seconds and refresh!");
+          setError("⚠️ API Rate Limit Exceeded: FocusBot has hit the Bytez API rate limit. Please wait 60 seconds and refresh!");
       } else if (e instanceof TypeError && msg === "Failed to fetch") {
           setError("Cannot connect to the server. Please check your internet connection.");
       } else {

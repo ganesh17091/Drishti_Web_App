@@ -1,9 +1,12 @@
 import os
 import json
+import logging
 import time
 from dotenv import load_dotenv
 from openai import OpenAI, RateLimitError
 from datetime import date
+
+logger = logging.getLogger(__name__)
 
 BYTEZ_MODEL = "meta-llama/Llama-3.2-3B-Instruct"
 BYTEZ_BASE_URL = "https://api.bytez.com/models/v2/openai/v1"
@@ -11,10 +14,12 @@ BYTEZ_BASE_URL = "https://api.bytez.com/models/v2/openai/v1"
 
 def get_chat_client():
     load_dotenv(override=True)
-    return OpenAI(
-        api_key=os.getenv("BYTEZ_API_KEY"),
-        base_url=BYTEZ_BASE_URL,
-    )
+    api_key = os.getenv("BYTEZ_API_KEY")
+    if not api_key:
+        raise EnvironmentError(
+            "BYTEZ_API_KEY is not set. Add it to your .env file."
+        )
+    return OpenAI(api_key=api_key, base_url=BYTEZ_BASE_URL)
 
 
 SYSTEM_PROMPT = """You are FocusBot — a personal AI career mentor and study assistant built into FocusPath.
@@ -104,9 +109,19 @@ def generate_chat_response(user, message, profile, logs, schedule, chat_history)
         messages.append({"role": role, "content": chat.message})
     messages.append({"role": "user", "content": message})
 
+    # Fix: create client once before retry loop; fast-fail on missing key
+    try:
+        client = get_chat_client()
+    except EnvironmentError as env_err:
+        logger.error("[chatbot_engine] %s", env_err)
+        return {
+            "reply": "⚠️ FocusBot is misconfigured (missing API key). Please contact support.",
+            "action": None
+        }
+
+    raw = None
     for attempt in range(3):
         try:
-            client = get_chat_client()
             response = client.chat.completions.create(
                 model=BYTEZ_MODEL,
                 messages=messages,
@@ -119,7 +134,7 @@ def generate_chat_response(user, message, profile, logs, schedule, chat_history)
             if cleaned.startswith("```"):
                 parts = cleaned.split("```")
                 cleaned = parts[1].lstrip("json").strip() if len(parts) >= 3 else cleaned
-            
+
             result = json.loads(cleaned)
 
             if "reply" not in result or not result["reply"]:
@@ -136,7 +151,7 @@ def generate_chat_response(user, message, profile, logs, schedule, chat_history)
             }
 
         except (json.JSONDecodeError, ValueError):
-            # Model returned non-JSON — treat as plain text reply
+            # Model returned non-JSON — treat as plain text reply on final attempt
             if attempt == 2:
                 return {"reply": raw.strip() if raw else "I'm here to help!", "action": None}
             time.sleep(1.5)
@@ -149,7 +164,7 @@ def generate_chat_response(user, message, profile, logs, schedule, chat_history)
                     "reply": "⚠️ FocusBot has hit its API rate limit. Please wait a minute and try again!",
                     "action": None
                 }
-            print(f"FocusBot attempt {attempt + 1}/3 failed: {e}")
+            logger.warning("[chatbot_engine] Attempt %d/3 failed: %s", attempt + 1, e)
             if attempt < 2:
                 time.sleep(1.5)
 

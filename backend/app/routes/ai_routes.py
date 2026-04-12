@@ -63,15 +63,26 @@ def log_activity(current_user):
 @ai_bp.route('/generate-insights', methods=['POST'])
 @token_required
 def generate_insights(current_user):
-    print("AI ROUTE CALLED")
-    print("INPUT DATA:", request.get_json(silent=True))
+    # Fix #7: removed print() debug statements
+    logger.info("[generate-insights] Request started for user_id=%s", current_user.id)
     try:
         profile = UserProfile.query.filter_by(user_id=current_user.id).first()
         if not profile:
             return jsonify({"error": "Profile not found. Please complete onboarding first."}), 404
             
         logs = UserActivityLog.query.filter_by(user_id=current_user.id).order_by(UserActivityLog.created_at.desc()).limit(20).all()
-        
+
+        # Fix #10: check for a cached result for today before calling AI
+        today_str = date.today().isoformat()
+        cached = AIRecommendation.query.filter_by(
+            user_id=current_user.id,
+            recommendation_type="insights_daily"
+        ).order_by(AIRecommendation.created_at.desc()).first()
+
+        if cached and cached.created_at.date() == date.today():
+            logger.info("[generate-insights] Returning cached insights for user_id=%s date=%s", current_user.id, today_str)
+            return jsonify(cached.content), 200
+
         insights = ai_engine.analyze_user(profile, logs)
 
         if isinstance(insights, dict) and "error" in insights:
@@ -82,7 +93,7 @@ def generate_insights(current_user):
 
         rec = AIRecommendation(
             user_id=current_user.id,
-            recommendation_type="insights",
+            recommendation_type="insights_daily",
             content=insights
         )
         db.session.add(rec)
@@ -96,8 +107,7 @@ def generate_insights(current_user):
 @ai_bp.route('/generate-schedule', methods=['POST'])
 @token_required
 def generate_schedule(current_user):
-    print("AI ROUTE CALLED")
-    print("INPUT DATA:", request.get_json(silent=True))
+    # Fix #7: removed print() debug statements
     logger.info("[generate-schedule] Request started for user_id=%s", current_user.id)
     try:
         # ── 1. VALIDATE: user profile must exist ────────────────────────────────
@@ -111,7 +121,7 @@ def generate_schedule(current_user):
                 "error": "Profile not found. Please complete onboarding before generating a schedule."
             }), 400
 
-        # ── 2. VALIDATE: at least some activity data ─────────────────────────────
+        # Fix #5: activity logs are optional context — no longer blocking
         logs = (
             UserActivityLog.query
             .filter_by(user_id=current_user.id)
@@ -119,21 +129,12 @@ def generate_schedule(current_user):
             .limit(10)
             .all()
         )
-        if not logs:
-            logger.warning(
-                "[generate-schedule] No activity logs for user_id=%s – returning 400",
-                current_user.id
-            )
-            return jsonify({
-                "error": "No activity logs found. Please log at least one activity before generating a schedule."
-            }), 400
-
         logger.info(
             "[generate-schedule] Found profile and %d activity log(s) for user_id=%s",
             len(logs), current_user.id
         )
 
-        # ── 3. CALL AI API (isolated to catch API-specific failures) ─────────────
+        # ── 2. CALL AI API (isolated to catch API-specific failures) ─────────────
         try:
             schedule_json = ai_engine.generate_daily_schedule(profile, logs)
         except Exception as api_err:
@@ -143,7 +144,7 @@ def generate_schedule(current_user):
             )
             return jsonify({"error": "AI service failed. Please try again later."}), 500
 
-        # ── 4. VALIDATE AI RESPONSE FORMAT ──────────────────────────────────────
+        # ── 3. VALIDATE AI RESPONSE FORMAT ──────────────────────────────────────
         if not isinstance(schedule_json, dict):
             logger.error(
                 "[generate-schedule] AI returned non-dict response for user_id=%s: %r",
@@ -172,7 +173,7 @@ def generate_schedule(current_user):
             len(schedule_json.get("schedule", [])), current_user.id
         )
 
-        # ── 5. PERSIST to DB ─────────────────────────────────────────────────────
+        # ── 4. PERSIST to DB ─────────────────────────────────────────────────────
         sched = UserSchedule.query.filter_by(
             user_id=current_user.id, schedule_date=date.today()
         ).first()
@@ -201,36 +202,9 @@ def generate_schedule(current_user):
         )
         return jsonify({"error": "Failed to generate schedule. Please try again."}), 500
 
-@ai_bp.route('/recommendations', methods=['GET'])
-@token_required
-def get_recommendations(current_user):
-    """Can act as both fetch and generate if empty"""
-    try:
-        recs = AIRecommendation.query.filter_by(user_id=current_user.id, recommendation_type="resources").order_by(AIRecommendation.created_at.desc()).first()
-        
-        if not recs:
-            profile = UserProfile.query.filter_by(user_id=current_user.id).first()
-            if not profile:
-                return jsonify({"error": "Profile not found"}), 404
-                
-            new_recs_json = ai_engine.generate_recommendations(profile)
-            if "error" in new_recs_json:
-                return jsonify(new_recs_json), 429 if new_recs_json.get("error") == "RATE_LIMIT" else 500
-
-            new_rec_db = AIRecommendation(
-                user_id=current_user.id,
-                recommendation_type="resources",
-                content=new_recs_json
-            )
-            db.session.add(new_rec_db)
-            db.session.commit()
-            return jsonify(new_recs_json), 200
-            
-        return jsonify(recs.content), 200
-        
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"error": str(e)}), 500
+# Fix #3: removed orphaned /recommendations endpoint that used the wrong
+# recommendation_type ("resources" instead of "resource_links") and shadowed
+# the real resources cache. Use GET /ai/resources instead.
 
 @ai_bp.route('/schedule/today', methods=['GET'])
 @token_required
@@ -282,7 +256,7 @@ def get_resource_links(current_user):
 @ai_bp.route('/resources/refresh', methods=['POST'])
 @token_required
 def refresh_resource_links(current_user):
-    """Force regenerates resource links from Gemini (ignores cache)."""
+    """Force regenerates resource links (ignores cache). Replaces the old record."""
     try:
         profile = UserProfile.query.filter_by(user_id=current_user.id).first()
         if not profile:
@@ -291,6 +265,12 @@ def refresh_resource_links(current_user):
         resource_data = ai_engine.generate_resource_links(profile)
         if "error" in resource_data:
             return jsonify(resource_data), 429 if resource_data.get("error") == "RATE_LIMIT" else 500
+
+        # Fix #9: delete ALL old resource_link rows so DB doesn't grow unbounded
+        AIRecommendation.query.filter_by(
+            user_id=current_user.id,
+            recommendation_type="resource_links"
+        ).delete()
 
         db.session.add(AIRecommendation(
             user_id=current_user.id,
@@ -303,7 +283,6 @@ def refresh_resource_links(current_user):
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
-
 
 
 @ai_bp.route('/insights', methods=['GET'])
@@ -373,7 +352,7 @@ def get_insights(current_user):
             ai_analysis = cached_analysis.content
             logger.info("[insights] Using cached AI analysis for user_id=%s date=%s", current_user.id, today_str)
         else:
-            # Only call Gemini if no cache for today AND there are logs to analyze
+            # Only call AI if no cache for today AND there are logs to analyze
             if all_logs:
                 recent_logs = sorted(all_logs, key=lambda l: l.created_at, reverse=True)[:20]
                 ai_analysis = ai_engine.analyze_user(profile, recent_logs)
@@ -408,4 +387,3 @@ def get_insights(current_user):
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
-

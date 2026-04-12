@@ -69,6 +69,8 @@ class AIRecommendation(db.Model):
 
 class UserSchedule(db.Model):
     __tablename__ = 'user_schedules'
+    # Fix #13: unique constraint prevents duplicate rows from concurrent requests
+    __table_args__ = (db.UniqueConstraint('user_id', 'schedule_date', name='uq_user_schedule_date'),)
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     schedule_date = db.Column(db.Date, nullable=False)
