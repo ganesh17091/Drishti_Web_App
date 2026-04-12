@@ -7,18 +7,18 @@ from openai import OpenAI, RateLimitError
 
 logger = logging.getLogger(__name__)
 
-BYTEZ_MODEL = "meta-llama/Llama-3.2-3B-Instruct"
-BYTEZ_BASE_URL = "https://api.bytez.com/models/v2/openai/v1"
+GROQ_MODEL = "llama-3.3-70b-versatile" # Or llama-3.1-8b-instant
+GROQ_BASE_URL = "https://api.groq.com/openai/v1"
 
 
 def get_client():
     load_dotenv(override=True)
-    api_key = os.getenv("BYTEZ_API_KEY")
+    api_key = os.getenv("GROQ_API_KEY")
     if not api_key:
         raise EnvironmentError(
-            "BYTEZ_API_KEY is not set. Add it to your .env file."
+            "GROQ_API_KEY is not set. Add it to your .env file."
         )
-    return OpenAI(api_key=api_key, base_url=BYTEZ_BASE_URL)
+    return OpenAI(api_key=api_key, base_url=GROQ_BASE_URL)
 
 
 def _call_ai_json(system_prompt, user_content, retries=3, delay=1):
@@ -35,7 +35,7 @@ def _call_ai_json(system_prompt, user_content, retries=3, delay=1):
     for attempt in range(retries):
         try:
             response = client.chat.completions.create(
-                model=BYTEZ_MODEL,
+                model=GROQ_MODEL,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user",   "content": user_content},
@@ -64,7 +64,7 @@ def _call_ai_json(system_prompt, user_content, retries=3, delay=1):
                 continue
 
         except RateLimitError as e:
-            logger.warning("[ai_engine] Bytez rate limit hit: %s", e)
+            logger.warning("[ai_engine] Groq rate limit hit: %s", e)
             return {
                 "error": "RATE_LIMIT",
                 "message": "FocusBot has hit its API rate limit. Please wait a minute and try again."
