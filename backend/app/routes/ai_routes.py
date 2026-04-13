@@ -110,6 +110,7 @@ def generate_schedule(current_user):
     # Fix #7: removed print() debug statements
     logger.info("[generate-schedule] Request started for user_id=%s", current_user.id)
     try:
+        data = request.get_json(silent=True)
         # ── 1. VALIDATE: user profile must exist ────────────────────────────────
         profile = UserProfile.query.filter_by(user_id=current_user.id).first()
         if not profile:
@@ -134,9 +135,20 @@ def generate_schedule(current_user):
             len(logs), current_user.id
         )
 
+        user_request = data.get("request") if data else None
+
+        # Fix #6: If schedule for today already exists and user didn't explicitly request an update via chatbot, return existing.
+        if not user_request:
+            existing = UserSchedule.query.filter_by(
+                user_id=current_user.id, schedule_date=date.today()
+            ).first()
+            if existing:
+                logger.info("[generate-schedule] Schedule already exists for user_id=%s. Returning existing.", current_user.id)
+                return jsonify(existing.schedule_data), 200
+
         # ── 2. CALL AI API (isolated to catch API-specific failures) ─────────────
         try:
-            schedule_json = ai_engine.generate_daily_schedule(profile, logs)
+            schedule_json = ai_engine.generate_daily_schedule(profile, logs, user_request)
         except Exception as api_err:
             logger.error(
                 "[generate-schedule] AI API call failed for user_id=%s: %s",

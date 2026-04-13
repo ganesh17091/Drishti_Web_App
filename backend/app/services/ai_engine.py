@@ -120,10 +120,11 @@ def generate_daily_schedule(user_profile, activity_logs, user_request=None):
         "free_hours": user_profile.daily_available_hours
     }
     sys_prompt = (
-        "You are an expert schedule building AI. Output an optimal daily schedule for the user's free hours. "
-        "You MUST respond with ONLY valid JSON — no markdown, no extra text. "
+        "You are an expert schedule building AI. Output a highly detailed, optimized daily schedule for the user's free hours. "
+        "You MUST respond with ONLY valid JSON. Focus on extremely specific sub-tasks rather than vague blocks. "
+        "For each scheduling block, provide granular detail and an actionable strategy natively within the 'task' field. "
         "Use exactly this format:\n"
-        '{"schedule":[{"time":"08:00 AM","task":"description","duration":"in minutes"}],'
+        '{"schedule":[{"time":"08:00 AM","task":"Detailed actionable description (e.g. Study Chapter 1: Thermodynamics, focusing on heat transfer mechanisms and attempting 5 practice problems)","duration":"in minutes"}],'
         '"daily_focus":"string overview of the day"}'
     )
     if user_request:
@@ -174,10 +175,11 @@ def generate_resource_links(user_profile):
         "{\n"
         '  "books":[{"title":"","author":"","why":"","level":"Beginner|Intermediate|Advanced","url":"https://www.google.com/search?q=title+author"}],\n'
         '  "youtube_videos":[{"title":"","channel":"","topic":"","duration_est":"short|medium|long","url":"https://www.youtube.com/results?search_query=topic"}],\n'
-        '  "youtube_shorts":[{"title":"","topic":"","url":"https://www.youtube.com/results?search_query=topic+60+seconds&sp=EgIYAQ%3D%3D"}],\n'
-        '  "courses":[{"title":"","platform":"Coursera|edX|Udemy|fast.ai|MIT OCW","level":"Beginner|Intermediate|Advanced","free":true,"why":"","url":""}]\n'
+        '  "youtube_shorts":[{"title":"","topic":"","url":"https://www.youtube.com/results?search_query=topic+shorts"}],\n'
+        '  "courses":[{"title":"","platform":"Coursera|edX|Udemy|fast.ai|MIT OCW","level":"Beginner|Intermediate|Advanced","free":true,"why":"","url":"https://www.google.com/search?q=topic+platform+course"}]\n'
         "}\n"
-        "Generate exactly: 6 books, 8 youtube_videos, 6 youtube_shorts, 5 courses."
+        "Generate exactly: 6 books, 8 youtube_videos, 6 youtube_shorts, 5 courses. "
+        "CRITICAL: For youtube_videos and youtube_shorts, provide a direct search link (e.g., https://www.youtube.com/results?search_query=...) testing the topic rather than guessing a specific video ID."
     )
     user_info = f"User profile: {json.dumps(profile_data)}"
     return _call_ai_json(sys_prompt, user_info)

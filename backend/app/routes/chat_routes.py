@@ -39,18 +39,18 @@ def execute_action(current_user, action):
                 error_msg = schedule_json.get("message") if isinstance(schedule_json, dict) else None
                 return {"error": error_msg or "AI failed to generate a valid schedule. Please try again."}
 
-            # Upsert: delete today's existing schedule first
+            # Upsert: update existing schedule if it exists to avoid unique constraint violation
             existing = UserSchedule.query.filter_by(
                 user_id=current_user.id, schedule_date=date.today()
             ).first()
             if existing:
-                db.session.delete(existing)
-
-            db.session.add(UserSchedule(
-                user_id=current_user.id,
-                schedule_date=date.today(),
-                schedule_data=schedule_json
-            ))
+                existing.schedule_data = schedule_json
+            else:
+                db.session.add(UserSchedule(
+                    user_id=current_user.id,
+                    schedule_date=date.today(),
+                    schedule_data=schedule_json
+                ))
             db.session.commit()
             return {"updated": "schedule", "data": schedule_json}
 
