@@ -215,7 +215,11 @@ export default function Dashboard() {
           <div className="glass-panel" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
             <div style={{ fontSize: "0.85rem", color: "var(--text-secondary)", fontWeight: 600 }}>Time Analytics</div>
             <div style={{ fontSize: "2.5rem", fontWeight: 800, color: "var(--text-primary)" }}>
-              {insightsLoading ? "..." : (insights ? `${insights.stats.total_hours}h` : "0h")} <span style={{fontSize: "1rem", color: "var(--text-secondary)"}}>14m</span>
+              {insightsLoading ? "..." : (insights ? (
+                <>
+                  {Math.floor(insights.stats.total_hours)}h <span style={{fontSize: "1rem", color: "var(--text-secondary)"}}>{Math.round((insights.stats.total_hours % 1) * 60)}m</span>
+                </>
+              ) : "0h")}
             </div>
             
             {/* Progress Bar */}
@@ -442,12 +446,14 @@ export default function Dashboard() {
                     </button>
                 </div>
 
-                {/* Team Tasks Overview (Orange style mockup) */}
+                {/* Goals Overview (Orange style mockup) */}
                 <div className="glass-panel glass-panel-orange" style={{ padding: "1.5rem" }}>
                     <h3 style={{ margin: "0 0 0.5rem", fontSize: "1.1rem", fontWeight: 700 }}>Goals Overview</h3>
                     <p style={{ fontSize: "0.85rem", opacity: 0.9, marginBottom: "1rem" }}>Your top priorities aligned with AI recommendations.</p>
                     <div style={{ background: "rgba(255,255,255,0.2)", padding: "12px", borderRadius: "10px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <span style={{ fontSize: "0.9rem", fontWeight: 600 }}>Frontend Dev</span>
+                        <span style={{ fontSize: "0.9rem", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px" }}>
+                          🎯 Current Focus
+                        </span>
                         <span style={{ fontSize: "0.8rem", background: "white", color: "#ea580c", padding: "2px 8px", borderRadius: "6px", fontWeight: 700 }}>Active</span>
                     </div>
                 </div>
@@ -474,7 +480,7 @@ export default function Dashboard() {
                         />
                         <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", textAlign: "center" }}>
                             <div style={{ fontSize: "1.8rem", fontWeight: 800, color: "var(--text-primary)", lineHeight: 1 }}>
-                                {insightsLoading ? "..." : (insights ? `0${insights.stats.total_hours % 8}:14` : "06:14")}
+                                {insightsLoading ? "..." : (insights ? `${String(Math.floor(insights.stats.total_hours)).padStart(2, '0')}:${String(Math.round((insights.stats.total_hours % 1) * 60)).padStart(2, '0')}` : "00:00")}
                             </div>
                             <div style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--text-secondary)", letterSpacing: "1px" }}>HOURS</div>
                         </div>
