@@ -328,7 +328,7 @@ export default function Dashboard() {
         <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "1rem" }}>
             
             {/* AI Smart Schedule Widget */}
-            <div className="glass-panel animate-fade-in" style={{ padding: "1.75rem", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+            <div className="glass-panel animate-fade-in" style={{ padding: "1.75rem", display: "flex", flexDirection: "column", overflow: "hidden", minHeight: "350px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
                 <h3 style={{ margin: 0, fontSize: "1.1rem", fontWeight: 700, display: "flex", alignItems: "center", gap: "8px" }}>
                     🤖 AI Smart Schedule <span className="badge badge-gray" style={{fontSize: "0.65rem"}}>AI OPTIMIZED</span>

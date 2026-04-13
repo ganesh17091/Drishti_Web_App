@@ -14,6 +14,7 @@ export default function NavWrapper({ children }: { children: React.ReactNode }) 
   const [userName, setUserName] = useState<string>("");
   const [showMenu, setShowMenu] = useState(false);
   const [exams, setExams] = useState<ExamItem[]>([]);
+  const [imgError, setImgError] = useState(false);
 
   useEffect(() => {
     try {
@@ -50,10 +51,26 @@ export default function NavWrapper({ children }: { children: React.ReactNode }) 
     <body onClick={() => setShowMenu(false)}>
       <nav className="navbar">
         {/* Logo — left */}
-        <div className="logo" onClick={() => router.push(showNav ? "/dashboard" : "/")} style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer" }}>
-          <img src="/logo.png" alt="Drishti Logo" style={{ height: "40px", objectFit: "contain" }} />
-          <span style={{ fontSize: "1.4rem", fontWeight: 800 }}>Drishti</span>
-        </div>
+        <button 
+          className="logo" 
+          onClick={() => router.push(showNav ? "/dashboard" : "/")} 
+          aria-label="Navigate to Home"
+          style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer", background: "none", border: "none", padding: 0 }}
+        >
+          {!imgError ? (
+            <img 
+              src="/logo.png" 
+              alt="Drishti Logo" 
+              style={{ height: "40px", objectFit: "contain" }} 
+              onError={() => setImgError(true)} 
+            />
+          ) : (
+            <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: "linear-gradient(135deg, var(--primary), var(--secondary))", display: "flex", alignItems: "center", justifyContent: "center", color: "white" }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+            </div>
+          )}
+          <span style={{ fontSize: "1.4rem", fontWeight: 800, color: "var(--text-primary)", fontFamily: "Outfit, sans-serif" }}>Drishti</span>
+        </button>
         
         {/* Search Bar - Center */}
         {showNav && (

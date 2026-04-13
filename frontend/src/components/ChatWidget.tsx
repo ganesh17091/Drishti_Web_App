@@ -168,13 +168,13 @@ export default function ChatWidget() {
                 </div>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <button onClick={() => setIsFullscreen(!isFullscreen)} style={{
+                  <button type="button" aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"} onClick={() => setIsFullscreen(!isFullscreen)} style={{
                     background: "none", border: "none", color: "var(--text-secondary)",
                     fontSize: "1.2rem", cursor: "pointer", padding: "0 5px", display: "flex", alignItems: "center"
                   }}>
                     {isFullscreen ? "↙️" : "↗️"}
                   </button>
-                  <button onClick={() => setIsOpen(false)} style={{
+                  <button type="button" aria-label="Close chat" onClick={() => setIsOpen(false)} style={{
                     background: "none", border: "none", color: "var(--text-secondary)",
                     fontSize: "1.5rem", cursor: "pointer", padding: "0 5px"
                   }}>×</button>
