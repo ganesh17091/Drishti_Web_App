@@ -5,7 +5,7 @@ import ChatWidget from "../components/ChatWidget";
 import CustomerSupportWidget from "../components/CustomerSupportWidget";
 
 export const metadata: Metadata = {
-  title: "FocusPath | AI Career Engine",
+  title: "Drishti | AI Career Engine",
   description: "AI-powered career guidance, scheduling, and progress tracking.",
 };
 

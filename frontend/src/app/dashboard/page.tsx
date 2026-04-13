@@ -134,7 +134,7 @@ export default function Dashboard() {
   }, [loadData]);
 
   return (
-    <div style={{ display: "flex", gap: "2rem", padding: "2.5rem 2rem", maxWidth: "1400px", margin: "0 auto", minHeight: "calc(100vh - 72px)" }}>
+    <div style={{ display: "flex", gap: "2rem", padding: "2.5rem 4%", maxWidth: "1800px", margin: "0 auto", minHeight: "calc(100vh - 72px)" }}>
 
       {/* ─── LEFT PANEL ───────────────────────────────────── */}
       <aside style={{ width: "280px", flexShrink: 0, display: "flex", flexDirection: "column", gap: "1.5rem" }}>

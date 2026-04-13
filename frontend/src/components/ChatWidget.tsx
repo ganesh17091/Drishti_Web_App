@@ -12,6 +12,7 @@ const ACTION_LABELS: Record<string, string> = {
 export default function ChatWidget() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -138,11 +139,14 @@ export default function ChatWidget() {
 
         {isOpen && (
           <div style={{
-            width: "360px", height: "550px", maxHeight: "calc(100vh - 40px)",
+            width: isFullscreen ? "clamp(400px, 80vw, 900px)" : "360px", 
+            height: isFullscreen ? "clamp(500px, 85vh, 900px)" : "550px", 
+            maxHeight: "calc(100vh - 40px)",
             background: "rgba(10,16,32,0.95)", border: "1px solid rgba(255,255,255,0.1)",
             borderRadius: "20px", display: "flex", flexDirection: "column",
             boxShadow: "0 12px 40px rgba(0,0,0,0.5), 0 0 20px rgba(139,92,246,0.2)",
             overflow: "hidden", backdropFilter: "blur(20px)",
+            transition: "width 0.3s ease, height 0.3s ease"
           }}>
             {/* Header */}
             <div style={{
@@ -163,10 +167,18 @@ export default function ChatWidget() {
                   </div>
                 </div>
               </div>
-              <button onClick={() => setIsOpen(false)} style={{
-                background: "none", border: "none", color: "var(--text-secondary)",
-                fontSize: "1.5rem", cursor: "pointer", padding: "0 5px"
-              }}>×</button>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <button onClick={() => setIsFullscreen(!isFullscreen)} style={{
+                    background: "none", border: "none", color: "var(--text-secondary)",
+                    fontSize: "1.2rem", cursor: "pointer", padding: "0 5px", display: "flex", alignItems: "center"
+                  }}>
+                    {isFullscreen ? "↙️" : "↗️"}
+                  </button>
+                  <button onClick={() => setIsOpen(false)} style={{
+                    background: "none", border: "none", color: "var(--text-secondary)",
+                    fontSize: "1.5rem", cursor: "pointer", padding: "0 5px"
+                  }}>×</button>
+              </div>
             </div>
 
             {/* Toast */}

@@ -50,8 +50,9 @@ export default function NavWrapper({ children }: { children: React.ReactNode }) 
     <body onClick={() => setShowMenu(false)}>
       <nav className="navbar">
         {/* Logo — left */}
-        <div className="logo" onClick={() => router.push(showNav ? "/dashboard" : "/")}>
-          ORDI <span style={{fontSize: "0.8rem", color: "var(--primary)", fontWeight: 600, marginLeft: "4px"}}>by FocusPath</span>
+        <div className="logo" onClick={() => router.push(showNav ? "/dashboard" : "/")} style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer" }}>
+          <img src="/logo.png" alt="Drishti Logo" style={{ height: "40px", objectFit: "contain" }} />
+          <span style={{ fontSize: "1.4rem", fontWeight: 800 }}>Drishti</span>
         </div>
         
         {/* Search Bar - Center */}
@@ -129,7 +130,7 @@ export default function NavWrapper({ children }: { children: React.ReactNode }) 
                           {userName || "User"}
                         </div>
                         <div style={{ fontSize: "0.78rem", color: "var(--text-secondary)" }}>
-                          FocusPath Account
+                          Drishti Account
                         </div>
                       </div>
                     </div>

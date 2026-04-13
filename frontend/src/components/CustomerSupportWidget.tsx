@@ -25,7 +25,7 @@ export default function CustomerSupportWidget() {
         style={{
           position: "fixed",
           bottom: "2rem",
-          right: "2rem",
+          left: "2rem",
           width: "60px",
           height: "60px",
           borderRadius: "50%",
@@ -57,7 +57,7 @@ export default function CustomerSupportWidget() {
         <div style={{
           position: "fixed",
           bottom: "2rem",
-          right: "2rem",
+          left: "2rem",
           width: "340px",
           background: "white",
           borderRadius: "20px",

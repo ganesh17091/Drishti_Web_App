@@ -32,7 +32,7 @@ export default function Home() {
         <h1 style={{ background: "linear-gradient(135deg, var(--primary), var(--secondary))",
           WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
           fontSize: "3.2rem", lineHeight: 1.15, marginBottom: "1.25rem" }}>
-          Welcome to FocusPath
+          Welcome to Drishti
         </h1>
         <p style={{ fontSize: "1.15rem", maxWidth: "580px", margin: "0 auto 2.5rem", lineHeight: 1.7 }}>
           Your AI-powered career co-pilot. Get personalized daily schedules, curated resources, and an intelligent roadmap — all built around your unique goals.
