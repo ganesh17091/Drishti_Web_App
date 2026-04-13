@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import NavWrapper from "../components/NavWrapper";
 import ChatWidget from "../components/ChatWidget";
+import CustomerSupportWidget from "../components/CustomerSupportWidget";
 
 export const metadata: Metadata = {
   title: "FocusPath | AI Career Engine",
@@ -17,6 +18,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <NavWrapper>
         {children}
         <ChatWidget />
+        <CustomerSupportWidget />
       </NavWrapper>
     </html>
   );

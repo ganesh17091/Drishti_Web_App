@@ -1,6 +1,7 @@
 "use client";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { Search, Menu, Bell } from "lucide-react";
 
 const PUBLIC_ROUTES = ["/", "/auth", "/onboarding", "/forgot-password", "/reset-password"];
 
@@ -50,73 +51,54 @@ export default function NavWrapper({ children }: { children: React.ReactNode }) 
       <nav className="navbar">
         {/* Logo — left */}
         <div className="logo" onClick={() => router.push(showNav ? "/dashboard" : "/")}>
-          FocusPath
+          ORDI <span style={{fontSize: "0.8rem", color: "var(--primary)", fontWeight: 600, marginLeft: "4px"}}>by FocusPath</span>
         </div>
+        
+        {/* Search Bar - Center */}
+        {showNav && (
+          <div style={{ flex: 1, maxWidth: "400px", margin: "0 2rem", position: "relative" }}>
+             <Search size={18} style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: "#9ca3af" }} />
+             <input type="text" placeholder="Search..." style={{
+                 width: "100%", padding: "10px 16px 10px 42px",
+                 background: "white", border: "none", borderRadius: "999px",
+                 boxShadow: "0 2px 10px rgba(0,0,0,0.03)", fontFamily: "Outfit, sans-serif", outline: "none"
+             }} />
+          </div>
+        )}
 
         {/* Right side controls */}
         {showNav && (
-          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
 
-            {/* Sign Out Button */}
-            <button
-              id="navbar-logout-btn"
-              onClick={logout}
-              style={{
-                padding: "8px 20px",
-                background: "rgba(255,255,255,0.05)",
-                border: "1px solid rgba(255,255,255,0.12)",
-                borderRadius: "8px",
-                color: "var(--text-secondary)",
-                cursor: "pointer",
-                fontFamily: "Outfit, sans-serif",
-                fontWeight: 600,
-                fontSize: "0.88rem",
-                letterSpacing: "0.3px",
-                transition: "all 0.2s",
-              }}
-              onMouseEnter={e => {
-                const b = e.currentTarget;
-                b.style.background = "rgba(239,68,68,0.15)";
-                b.style.borderColor = "rgba(239,68,68,0.35)";
-                b.style.color = "#ef4444";
-              }}
-              onMouseLeave={e => {
-                const b = e.currentTarget;
-                b.style.background = "rgba(255,255,255,0.05)";
-                b.style.borderColor = "rgba(255,255,255,0.12)";
-                b.style.color = "var(--text-secondary)";
-              }}
-            >
-              Sign Out
-            </button>
+            <div style={{
+                width: "40px", height: "40px", background: "white", borderRadius: "50%",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                boxShadow: "0 2px 10px rgba(0,0,0,0.03)", cursor: "pointer", color: "var(--text-secondary)"
+            }}>
+                <Bell size={20} />
+            </div>
 
-            {/* Profile Avatar — right of Sign Out */}
+            {/* Profile Menu Button */}
             <div style={{ position: "relative" }}>
-              <div
-                id="navbar-profile-avatar"
+              <button
+                id="navbar-profile-btn"
                 onClick={e => { e.stopPropagation(); setShowMenu(v => !v); }}
-                title={userName || "Profile"}
                 style={{
-                  width: "40px", height: "40px", borderRadius: "50%",
-                  background: "linear-gradient(135deg, var(--primary), var(--secondary))",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontWeight: 700, fontSize: "0.95rem", color: "white",
-                  cursor: "pointer", userSelect: "none",
-                  border: "2px solid rgba(255,255,255,0.12)",
-                  transition: "transform 0.2s, box-shadow 0.2s",
-                  boxShadow: showMenu ? "0 0 0 3px rgba(139,92,246,0.4)" : "none",
-                }}
-                onMouseEnter={e => {
-                  (e.currentTarget as HTMLDivElement).style.transform = "scale(1.08)";
-                  (e.currentTarget as HTMLDivElement).style.boxShadow = "0 0 0 3px rgba(139,92,246,0.4)";
-                }}
-                onMouseLeave={e => {
-                  (e.currentTarget as HTMLDivElement).style.transform = "scale(1)";
-                  if (!showMenu) (e.currentTarget as HTMLDivElement).style.boxShadow = "none";
+                  display: "flex", alignItems: "center", gap: "8px",
+                  padding: "4px 12px 4px 4px", background: "var(--primary)", borderRadius: "999px",
+                  border: "none", cursor: "pointer", color: "white", fontFamily: "Outfit", fontWeight: 600,
+                  transition: "all 0.2s", boxShadow: "0 4px 12px rgba(251,146,60,0.3)"
                 }}
               >
-                {initials}
-              </div>
+                  <div style={{
+                      width: "32px", height: "32px", borderRadius: "50%", background: "white", color: "var(--primary)",
+                      display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.8rem", fontWeight: 700
+                  }}>
+                      {initials}
+                  </div>
+                  <span>Menu</span>
+                  <Menu size={18} />
+              </button>
 
               {/* Dropdown Menu */}
               {showMenu && (
@@ -124,26 +106,26 @@ export default function NavWrapper({ children }: { children: React.ReactNode }) 
                   onClick={e => e.stopPropagation()}
                   style={{
                     position: "absolute", top: "calc(100% + 10px)", right: 0,
-                    minWidth: "200px", zIndex: 500,
-                    background: "rgba(15,23,42,0.97)",
-                    border: "1px solid rgba(255,255,255,0.1)",
-                    borderRadius: "12px",
-                    boxShadow: "0 16px 40px rgba(0,0,0,0.6)",
+                    minWidth: "220px", zIndex: 500,
+                    background: "rgba(255,255,255,0.98)",
+                    border: "1px solid rgba(0,0,0,0.05)",
+                    borderRadius: "16px",
+                    boxShadow: "0 10px 40px rgba(0,0,0,0.1)",
                     backdropFilter: "blur(16px)",
                     overflow: "hidden",
                   }}
                 >
                   {/* User name header */}
-                  <div style={{ padding: "1rem 1.25rem", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+                  <div style={{ padding: "1rem 1.25rem", borderBottom: "1px solid rgba(0,0,0,0.05)" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
                       <div style={{ width: "36px", height: "36px", borderRadius: "50%",
-                        background: "linear-gradient(135deg, var(--primary), var(--secondary))",
+                        background: "var(--primary)",
                         display: "flex", alignItems: "center", justifyContent: "center",
                         fontWeight: 700, fontSize: "0.85rem", color: "white", flexShrink: 0 }}>
                         {initials}
                       </div>
                       <div>
-                        <div style={{ fontWeight: 700, fontSize: "0.95rem", color: "white" }}>
+                        <div style={{ fontWeight: 700, fontSize: "0.95rem", color: "var(--text-primary)" }}>
                           {userName || "User"}
                         </div>
                         <div style={{ fontSize: "0.78rem", color: "var(--text-secondary)" }}>
@@ -163,16 +145,16 @@ export default function NavWrapper({ children }: { children: React.ReactNode }) 
                       onClick={() => { router.push(item.href); setShowMenu(false); }}
                       style={{ width: "100%", padding: "0.75rem 1.25rem", background: "transparent",
                         border: "none", textAlign: "left", cursor: "pointer",
-                        fontFamily: "Outfit, sans-serif", fontSize: "0.9rem",
-                        color: "var(--text-secondary)", display: "flex", gap: "0.75rem", alignItems: "center",
-                        transition: "background 0.15s, color 0.15s", borderBottom: "1px solid rgba(255,255,255,0.04)" }}
+                        fontFamily: "Outfit, sans-serif", fontSize: "0.92rem", fontWeight: 500,
+                        color: "var(--text-primary)", display: "flex", gap: "0.75rem", alignItems: "center",
+                        transition: "background 0.15s, color 0.15s", borderBottom: "1px solid rgba(0,0,0,0.03)" }}
                       onMouseEnter={e => {
-                        (e.currentTarget as HTMLButtonElement).style.background = "rgba(139,92,246,0.12)";
-                        (e.currentTarget as HTMLButtonElement).style.color = "white";
+                        (e.currentTarget as HTMLButtonElement).style.background = "rgba(251,146,60,0.08)";
+                        (e.currentTarget as HTMLButtonElement).style.color = "var(--primary)";
                       }}
                       onMouseLeave={e => {
                         (e.currentTarget as HTMLButtonElement).style.background = "transparent";
-                        (e.currentTarget as HTMLButtonElement).style.color = "var(--text-secondary)";
+                        (e.currentTarget as HTMLButtonElement).style.color = "var(--text-primary)";
                       }}>
                       <span>{item.icon}</span>
                       <span>{item.label}</span>
@@ -184,10 +166,10 @@ export default function NavWrapper({ children }: { children: React.ReactNode }) 
                     onClick={logout}
                     style={{ width: "100%", padding: "0.75rem 1.25rem", background: "transparent",
                       border: "none", textAlign: "left", cursor: "pointer",
-                      fontFamily: "Outfit, sans-serif", fontSize: "0.9rem",
+                      fontFamily: "Outfit, sans-serif", fontSize: "0.92rem", fontWeight: 500,
                       color: "#ef4444", display: "flex", gap: "0.75rem", alignItems: "center",
                       transition: "background 0.15s" }}
-                    onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.background = "rgba(239,68,68,0.1)"}
+                    onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.background = "rgba(239,68,68,0.08)"}
                     onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background = "transparent"}>
                     <span>🚪</span>
                     <span>Sign Out</span>
@@ -205,17 +187,17 @@ export default function NavWrapper({ children }: { children: React.ReactNode }) 
           onClick={() => router.push("/exams")}
           style={{
             display: "flex", alignItems: "center", gap: "0.6rem",
-            padding: "0 2rem", height: "42px", overflowX: "auto", overflowY: "hidden",
-            background: "rgba(10,16,32,0.85)", backdropFilter: "blur(12px)",
-            borderBottom: "1px solid rgba(255,255,255,0.05)",
+            padding: "0 2.5rem", height: "42px", overflowX: "auto", overflowY: "hidden",
+            background: "rgba(255,255,255,0.6)", backdropFilter: "blur(12px)",
+            borderBottom: "1px solid rgba(0,0,0,0.05)",
             scrollbarWidth: "none", cursor: "pointer", flexShrink: 0,
           }}
           title="Click to manage all countdowns"
         >
-          <span style={{ fontSize: "0.7rem", fontWeight: 700, color: "rgba(148,163,184,0.5)", letterSpacing: "1px", textTransform: "uppercase", flexShrink: 0 }}>
+          <span style={{ fontSize: "0.7rem", fontWeight: 700, color: "var(--text-secondary)", letterSpacing: "1px", textTransform: "uppercase", flexShrink: 0 }}>
             ⏳ COUNTDOWN
           </span>
-          <div style={{ width: "1px", height: "16px", background: "rgba(255,255,255,0.08)", flexShrink: 0 }} />
+          <div style={{ width: "1px", height: "16px", background: "rgba(0,0,0,0.1)", flexShrink: 0 }} />
 
           {exams.map(item => {
             const isCritical = item.urgency === "critical";
@@ -223,19 +205,19 @@ export default function NavWrapper({ children }: { children: React.ReactNode }) 
               <div key={item.id} style={{
                 display: "flex", alignItems: "center", gap: "5px", flexShrink: 0,
                 padding: "3px 10px 3px 8px", borderRadius: "999px",
-                background: isCritical ? "rgba(239,68,68,0.12)" : `${item.color}12`,
-                border: `1px solid ${isCritical ? "rgba(239,68,68,0.35)" : item.color + "35"}`,
+                background: isCritical ? "rgba(239,68,68,0.1)" : `rgba(251,146,60,0.1)`,
+                border: `1px solid ${isCritical ? "rgba(239,68,68,0.2)" : "rgba(251,146,60,0.2)"}`,
                 animation: isCritical ? "stripPulse 2s ease-in-out infinite" : "none",
               }}>
                 <span style={{ fontSize: "0.85rem" }}>{item.emoji}</span>
-                <span style={{ fontSize: "0.75rem", fontWeight: 600, color: isCritical ? "#ef4444" : item.color, whiteSpace: "nowrap" }}>
+                <span style={{ fontSize: "0.75rem", fontWeight: 600, color: isCritical ? "#ef4444" : "var(--primary)", whiteSpace: "nowrap" }}>
                   {item.title}
                 </span>
                 <span style={{
                   fontSize: "0.7rem", fontWeight: 800, marginLeft: "2px",
-                  color: isCritical ? "#ef4444" : "white",
-                  background: isCritical ? "rgba(239,68,68,0.2)" : `${item.color}25`,
-                  padding: "1px 6px", borderRadius: "999px",
+                  color: isCritical ? "white" : "white",
+                  background: isCritical ? "#ef4444" : "var(--primary)",
+                  padding: "2px 6px", borderRadius: "999px",
                 }}>
                   {item.days_left === 0 ? "TODAY" : `${item.days_left}d`}
                 </span>
@@ -243,8 +225,8 @@ export default function NavWrapper({ children }: { children: React.ReactNode }) 
             );
           })}
 
-          <div style={{ marginLeft: "auto", flexShrink: 0, fontSize: "0.72rem", color: "rgba(148,163,184,0.35)", paddingLeft: "0.5rem" }}>
-            + Manage →
+          <div style={{ marginLeft: "auto", flexShrink: 0, fontSize: "0.72rem", color: "var(--text-secondary)", paddingLeft: "0.5rem", fontWeight: 500 }}>
+            + Manage
           </div>
 
           <style>{`

@@ -23,6 +23,9 @@ const NAV_ITEMS = [
   { href: "/profile",         icon: "👤", label: "Edit Profile",         color: "#94a3b8" },
 ];
 
+import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
+import 'react-circular-progressbar/dist/styles.css';
+
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload?.length) {
     return (
@@ -163,7 +166,7 @@ export default function Dashboard() {
                   borderLeft: "3px solid transparent" }}
                 onMouseEnter={e => {
                   const el = e.currentTarget;
-                  el.style.background = "rgba(255,255,255,0.05)";
+                  el.style.background = "rgba(0,0,0,0.03)";
                   el.style.borderLeftColor = item.color;
                   el.style.paddingLeft = "1.1rem";
                 }}
@@ -194,7 +197,7 @@ export default function Dashboard() {
               { icon: "🎯", label: "Sessions",    val: insights.stats.total_sessions,      color: "#ec4899" },
             ].map(s => (
               <div key={s.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center",
-                padding: "0.6rem 0", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                padding: "0.6rem 0", borderBottom: "1px solid rgba(0,0,0,0.05)" }}>
                 <span style={{ color: "var(--text-secondary)", fontSize: "0.88rem" }}>{s.icon} {s.label}</span>
                 <span style={{ color: s.color, fontWeight: 700 }}>{s.val}</span>
               </div>
@@ -206,26 +209,50 @@ export default function Dashboard() {
       {/* ─── RIGHT PANEL ──────────────────────────────────── */}
       <main style={{ flex: 1, display: "flex", flexDirection: "column", gap: "1.5rem", minWidth: 0 }}>
 
-        {/* Row 0: Stats Strip */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "1rem" }}>
+        {/* Row 0: Stats Strip (Time Analytics overview mock) */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "1rem" }}>
+          {/* Main Time Analytics Widget */}
+          <div className="glass-panel" style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+            <div style={{ fontSize: "0.85rem", color: "var(--text-secondary)", fontWeight: 600 }}>Time Analytics</div>
+            <div style={{ fontSize: "2.5rem", fontWeight: 800, color: "var(--text-primary)" }}>
+              {insightsLoading ? "..." : (insights ? `${insights.stats.total_hours}h` : "0h")} <span style={{fontSize: "1rem", color: "var(--text-secondary)"}}>14m</span>
+            </div>
+            
+            {/* Progress Bar */}
+            <div style={{ display: "flex", width: "100%", height: "14px", borderRadius: "999px", overflow: "hidden", gap: "2px", marginTop: "0.5rem" }}>
+                <div style={{ width: "62%", height: "100%", background: "#ea580c" }} title="Deep work 62%"></div>
+                <div style={{ width: "12%", height: "100%", background: "#facc15" }} title="Internal Tasks 12%"></div>
+                <div style={{ width: "7%", height: "100%", background: "#8b5cf6" }} title="Meetings 7%"></div>
+                <div style={{ width: "19%", height: "100%", background: "#94a3b8" }} title="Breaks 19%"></div>
+            </div>
+            {/* Legend */}
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", color: "var(--text-secondary)", marginTop: "0.25rem", fontWeight: 500 }}>
+                <span style={{color: "#ea580c"}}>Deep work 62%</span>
+                <span style={{color: "#facc15"}}>Tasks 12%</span>
+                <span style={{color: "#8b5cf6"}}>Meets 7%</span>
+                <span>Breaks 19%</span>
+            </div>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "1rem" }}>
           {[
-            { icon: "⏱️", label: "Total Hours",  sub: "all time",         val: insights ? `${insights.stats.total_hours}h`        : "—", color: "#8b5cf6" },
-            { icon: "🎯", label: "Sessions",     sub: "logged",           val: insights ? `${insights.stats.total_sessions}`      : "—", color: "#ec4899" },
-            { icon: "🔥", label: "Day Streak",   sub: "consecutive days", val: insights ? `${insights.stats.streak_days}d`         : "—", color: "#f59e0b" },
+            { icon: "🎯", label: "Sessions",     sub: "logged",           val: insights ? `${insights.stats.total_sessions}`      : "—", color: "#ea580c" },
+            { icon: "🔥", label: "Streak",       sub: "consecutive days", val: insights ? `${insights.stats.streak_days}d`         : "—", color: "#facc15" },
             { icon: "✅", label: "Tasks Done",   sub: "completed",        val: insights ? `${insights.stats.tasks_completed}`     : "—", color: "#10b981" },
             { icon: "⏳", label: "Pending",      sub: "tasks left",       val: insights ? `${insights.stats.tasks_pending}`       : "—", color: "#6366f1" },
           ].map(s => (
             <div key={s.label} className="glass-panel animate-fade-in"
-              style={{ padding: "1.25rem 1rem", textAlign: "center", borderTop: `3px solid ${s.color}` }}>
-              <div style={{ fontSize: "1.6rem", marginBottom: "0.4rem" }}>{s.icon}</div>
-              <div style={{ fontSize: "1.8rem", fontWeight: 800, color: s.color, lineHeight: 1 }}>
+              style={{ padding: "1.25rem 1rem", textAlign: "center", borderTop: `3px solid ${s.color}`, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+              <div style={{ fontSize: "1.4rem", marginBottom: "0.2rem" }}>{s.icon}</div>
+              <div style={{ fontSize: "1.5rem", fontWeight: 800, color: "var(--text-primary)", lineHeight: 1 }}>
                 {insightsLoading ? "…" : s.val}
               </div>
-              <div style={{ fontWeight: 600, fontSize: "0.85rem", marginTop: "0.4rem" }}>{s.label}</div>
-              <div style={{ color: "var(--text-secondary)", fontSize: "0.75rem" }}>{s.sub}</div>
+              <div style={{ fontWeight: 600, fontSize: "0.85rem", marginTop: "0.4rem", color: "var(--text-secondary)" }}>{s.label}</div>
             </div>
           ))}
+          </div>
         </div>
+
 
         {/* Row 1: Productivity Badge + Bar Chart */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "1.5rem" }}>
@@ -297,80 +324,164 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Row 2: Today's AI Schedule */}
-        <div className="glass-panel animate-fade-in" style={{ padding: "1.75rem" }}>
-          <h3 style={{ margin: "0 0 0.5rem", fontSize: "1.1rem", fontWeight: 700 }}>
-            🤖 Today's AI-Generated Schedule
-          </h3>
-          {!schedLoading && schedule?.daily_focus && (
-            <p style={{ color: "var(--primary)", fontStyle: "italic", margin: "0 0 1.25rem", fontSize: "0.9rem" }}>
-              🎯 {schedule.daily_focus}
-            </p>
-          )}
-
-          {schedLoading ? (
-            <div style={{ textAlign: "center", padding: "1.5rem 0" }}>
-              <p style={{ color: "var(--text-secondary)", margin: 0 }}>Gemini is building your schedule...</p>
-              {schedSlowLoad && (
-                <p style={{ color: "var(--text-secondary)", fontSize: "0.8rem", marginTop: "0.75rem", opacity: 0.7 }}>
-                  ⏳ Server is waking up (free tier cold start) — this may take 30–60 seconds...
+        {/* Row 2: Today's AI Schedule & Other widgets */}
+        <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "1rem" }}>
+            
+            {/* AI Smart Schedule Widget */}
+            <div className="glass-panel animate-fade-in" style={{ padding: "1.75rem", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+                <h3 style={{ margin: 0, fontSize: "1.1rem", fontWeight: 700, display: "flex", alignItems: "center", gap: "8px" }}>
+                    🤖 AI Smart Schedule <span className="badge badge-gray" style={{fontSize: "0.65rem"}}>AI OPTIMIZED</span>
+                </h3>
+                <span style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}>Based on your patterns</span>
+              </div>
+              
+              {!schedLoading && schedule?.daily_focus && (
+                <p style={{ color: "var(--primary)", fontStyle: "italic", margin: "0 0 1.25rem", fontSize: "0.9rem" }}>
+                  🎯 {schedule.daily_focus}
                 </p>
               )}
-            </div>
-          ) : schedule?.schedule ? (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "1rem" }}>
-              {schedule.schedule.map((item: any, idx: number) => (
-                <div key={idx} style={{ background: "rgba(0,0,0,0.3)", padding: "1rem 1.25rem",
-                  borderRadius: "12px", borderLeft: "3px solid var(--secondary)" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.4rem" }}>
-                    <span style={{ fontWeight: 700, color: "var(--secondary)", fontSize: "0.95rem" }}>{item.time}</span>
-                    <span style={{ color: "var(--text-secondary)", fontSize: "0.82rem" }}>{item.duration}m</span>
+
+              {schedLoading ? (
+                <div style={{ textAlign: "center", padding: "1.5rem 0", flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <div>
+                      <p style={{ color: "var(--text-secondary)", margin: 0 }}>Gemini is building your schedule...</p>
+                      {schedSlowLoad && (
+                        <p style={{ color: "var(--text-secondary)", fontSize: "0.8rem", marginTop: "0.75rem", opacity: 0.7 }}>
+                          ⏳ Server is waking up (free tier cold start) — this may take 30–60 seconds...
+                        </p>
+                      )}
                   </div>
-                  <p style={{ margin: 0, fontSize: "0.88rem", color: "var(--text-primary)", lineHeight: 1.5 }}>{item.task}</p>
                 </div>
-              ))}
+              ) : schedule?.schedule ? (
+                <div className="custom-scrollbar" style={{ display: "flex", gap: "1rem", overflowX: "auto", paddingBottom: "1rem", marginTop: "1rem" }}>
+                  {schedule.schedule.map((item: any, idx: number) => {
+                      const colors = ["#ea580c", "#8b5cf6", "#facc15", "#10b981", "#ec4899"];
+                      const itemColor = colors[idx % colors.length];
+                      return (
+                        <div key={idx} style={{ 
+                            minWidth: "160px", background: "rgba(255,255,255,0.6)", padding: "1rem",
+                            borderRadius: "16px", border: "1px solid rgba(0,0,0,0.05)",
+                            position: "relative", display: "flex", flexDirection: "column",
+                            boxShadow: "0 2px 8px rgba(0,0,0,0.02)"
+                        }}>
+                          <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: itemColor, marginBottom: "8px" }}></div>
+                          <div style={{ fontWeight: 700, color: "var(--text-primary)", fontSize: "0.95rem", marginBottom: "4px" }}>
+                              {item.time}
+                          </div>
+                          <p style={{ margin: 0, fontSize: "0.88rem", color: "var(--text-secondary)", lineHeight: 1.3, flex: 1 }}>{item.task}</p>
+                          <div style={{ marginTop: "12px", background: "white", padding: "4px 8px", borderRadius: "6px", fontSize: "0.75rem", fontWeight: 600, color: "var(--text-primary)", alignSelf: "flex-start", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+                              {item.duration}m
+                          </div>
+                        </div>
+                      )
+                  })}
+                </div>
+              ) : schedule?.error === "RATE_LIMIT" ? (
+                <div style={{ padding: "1.5rem", borderLeft: "4px solid #ef4444", background: "rgba(239,68,68,0.05)", borderRadius: "8px" }}>
+                  <h4 style={{ margin: "0 0 0.5rem", color: "#ef4444", fontSize: "1.05rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                    <span>⚠️</span> Free-Tier Rate Limit Reached
+                  </h4>
+                  <p style={{ margin: "0 0 1rem", fontSize: "0.85rem", color: "var(--text-secondary)", lineHeight: 1.5 }}>
+                    {schedule?.message || "FocusBot hit its daily API free-tier limit. Please wait a bit and try again!"}
+                  </p>
+                  <button onClick={loadData} style={{
+                    padding: "8px 18px", background: "rgba(239,68,68,0.1)", border: "none", borderRadius: "8px", color: "#ef4444", cursor: "pointer", fontWeight: 600, fontSize: "0.85rem"
+                  }}>🔄 Try Again</button>
+                </div>
+              ) : schedule?.error ? (
+                <div style={{ padding: "1.5rem", borderLeft: "4px solid #f59e0b", background: "rgba(245,158,11,0.05)", borderRadius: "8px" }}>
+                  <h4 style={{ margin: "0 0 0.5rem", color: "#f59e0b", fontSize: "1.05rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                    <span>⚠️</span> Schedule Unavailable
+                  </h4>
+                  <p style={{ margin: "0 0 1rem", fontSize: "0.85rem", color: "var(--text-secondary)", lineHeight: 1.5 }}>
+                    {schedule.error}
+                  </p>
+                  <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+                    <button onClick={loadData} style={{
+                      padding: "8px 18px", background: "rgba(245,158,11,0.1)", border: "none", borderRadius: "8px", color: "#ea580c", cursor: "pointer", fontWeight: 600, fontSize: "0.85rem"
+                    }}>🔄 Retry</button>
+                    <button onClick={() => router.push("/log-activity")} style={{
+                      padding: "8px 18px", background: "var(--primary)", border: "none", borderRadius: "8px", color: "white", cursor: "pointer", fontWeight: 600, fontSize: "0.85rem"
+                    }}>⚡ Log Activity</button>
+                  </div>
+                </div>
+              ) : (
+                <p style={{ color: "var(--text-secondary)" }}>Schedule unavailable. Check your profile is complete.</p>
+              )}
             </div>
-          ) : schedule?.error === "RATE_LIMIT" ? (
-            <div style={{ padding: "1.5rem", borderLeft: "4px solid #ef4444", background: "rgba(239,68,68,0.05)", borderRadius: "8px" }}>
-              <h4 style={{ margin: "0 0 0.5rem", color: "#ef4444", fontSize: "1.05rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <span>⚠️</span> Free-Tier Rate Limit Reached
-              </h4>
-              <p style={{ margin: "0 0 1rem", fontSize: "0.85rem", color: "var(--text-secondary)", lineHeight: 1.5 }}>
-                {schedule?.message || "FocusBot hit its daily API free-tier limit. Please wait a bit and try again!"}
-              </p>
-              <button onClick={loadData} style={{
-                padding: "8px 18px", background: "rgba(239,68,68,0.12)",
-                border: "1px solid rgba(239,68,68,0.35)", borderRadius: "8px",
-                color: "#ef4444", cursor: "pointer",
-                fontFamily: "Outfit, sans-serif", fontWeight: 600, fontSize: "0.85rem"
-              }}>🔄 Try Again</button>
+
+            {/* Right Side Column (Tasks/Time Tracker) */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                
+                {/* Tasks Module Mockup */}
+                <div className="glass-panel" style={{ padding: "1.5rem" }}>
+                    <h3 style={{ margin: "0 0 1rem", fontSize: "1.1rem", fontWeight: 700 }}>Today's Tasks</h3>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "white", padding: "10px", borderRadius: "12px", boxShadow: "0 2px 6px rgba(0,0,0,0.02)" }}>
+                            <div>
+                                <div style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text-primary)" }}>App Design</div>
+                            </div>
+                            <div style={{display: "flex", gap: "8px", alignItems: "center"}}>
+                                <span className="badge badge-orange">High</span>
+                                <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: 600 }}>4h</span>
+                            </div>
+                        </div>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "white", padding: "10px", borderRadius: "12px", boxShadow: "0 2px 6px rgba(0,0,0,0.02)" }}>
+                            <div>
+                                <div style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text-primary)" }}>Team Meeting</div>
+                            </div>
+                            <div style={{display: "flex", gap: "8px", alignItems: "center"}}>
+                                <span className="badge badge-gray">Mid</span>
+                                <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: 600 }}>30m</span>
+                            </div>
+                        </div>
+                    </div>
+                    <button className="modern-btn" style={{ background: "white", color: "var(--text-primary)", border: "1px solid rgba(0,0,0,0.1)", fontSize: "0.9rem", padding: "10px", marginTop: "1rem" }}>
+                        Add New Task
+                    </button>
+                </div>
+
+                {/* Team Tasks Overview (Orange style mockup) */}
+                <div className="glass-panel glass-panel-orange" style={{ padding: "1.5rem" }}>
+                    <h3 style={{ margin: "0 0 0.5rem", fontSize: "1.1rem", fontWeight: 700 }}>Goals Overview</h3>
+                    <p style={{ fontSize: "0.85rem", opacity: 0.9, marginBottom: "1rem" }}>Your top priorities aligned with AI recommendations.</p>
+                    <div style={{ background: "rgba(255,255,255,0.2)", padding: "12px", borderRadius: "10px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span style={{ fontSize: "0.9rem", fontWeight: 600 }}>Frontend Dev</span>
+                        <span style={{ fontSize: "0.8rem", background: "white", color: "#ea580c", padding: "2px 8px", borderRadius: "6px", fontWeight: 700 }}>Active</span>
+                    </div>
+                </div>
+
+                {/* Time Tracker */}
+                <div className="glass-panel" style={{ padding: "1.5rem", display: "flex", flexDirection: "column", alignItems: "center" }}>
+                    <div style={{ width: "100%", display: "flex", justifyContent: "space-between", marginBottom: "1rem" }}>
+                        <h3 style={{ margin: 0, fontSize: "1.1rem", fontWeight: 700 }}>Time Tracker</h3>
+                        <span style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>Today</span>
+                    </div>
+                    <div style={{ width: "140px", height: "140px", position: "relative" }}>
+                        <CircularProgressbar
+                            value={insights ? (insights.stats.total_hours % 8) / 8 * 100 : 75}
+                            strokeWidth={8}
+                            styles={buildStyles({
+                                rotation: 0.25,
+                                strokeLinecap: 'round',
+                                pathTransitionDuration: 0.5,
+                                pathColor: `rgba(251, 146, 60, 1)`,
+                                textColor: 'transparent',
+                                trailColor: 'rgba(0,0,0,0.05)',
+                                backgroundColor: '#fdfcf7',
+                            })}
+                        />
+                        <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", textAlign: "center" }}>
+                            <div style={{ fontSize: "1.8rem", fontWeight: 800, color: "var(--text-primary)", lineHeight: 1 }}>
+                                {insightsLoading ? "..." : (insights ? `0${insights.stats.total_hours % 8}:14` : "06:14")}
+                            </div>
+                            <div style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--text-secondary)", letterSpacing: "1px" }}>HOURS</div>
+                        </div>
+                    </div>
+                </div>
+
             </div>
-          ) : schedule?.error ? (
-            <div style={{ padding: "1.5rem", borderLeft: "4px solid #f59e0b", background: "rgba(245,158,11,0.05)", borderRadius: "8px" }}>
-              <h4 style={{ margin: "0 0 0.5rem", color: "#f59e0b", fontSize: "1.05rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <span>⚠️</span> Schedule Unavailable
-              </h4>
-              <p style={{ margin: "0 0 1rem", fontSize: "0.85rem", color: "var(--text-secondary)", lineHeight: 1.5 }}>
-                {schedule.error}
-              </p>
-              <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
-                <button onClick={loadData} style={{
-                  padding: "8px 18px", background: "rgba(245,158,11,0.12)",
-                  border: "1px solid rgba(245,158,11,0.35)", borderRadius: "8px",
-                  color: "#f59e0b", cursor: "pointer",
-                  fontFamily: "Outfit, sans-serif", fontWeight: 600, fontSize: "0.85rem"
-                }}>🔄 Retry</button>
-                <button onClick={() => router.push("/log-activity")} style={{
-                  padding: "8px 18px", background: "rgba(139,92,246,0.12)",
-                  border: "1px solid rgba(139,92,246,0.35)", borderRadius: "8px",
-                  color: "var(--primary)", cursor: "pointer",
-                  fontFamily: "Outfit, sans-serif", fontWeight: 600, fontSize: "0.85rem"
-                }}>⚡ Log Activity</button>
-              </div>
-            </div>
-          ) : (
-            <p style={{ color: "var(--text-secondary)" }}>Schedule unavailable. Check your profile is complete.</p>
-          )}
         </div>
 
       </main>
