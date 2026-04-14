@@ -85,36 +85,43 @@ export default function Dashboard() {
           clearTimeout(slowTimer);
           setSchedSlowLoad(false);
         } else {
-          // Step 2: Generate fresh schedule via Gemini
-          fetch(`${API}/ai/generate-schedule`, {
-            method: "POST",
-            headers: { Authorization: `Bearer ${t}`, "Content-Type": "application/json" },
-            body: JSON.stringify({ date: selectedDate })
-          })
-            .then(async r => {
-              const body = await r.json();
-              if (r.status === 400) {
-                // No activity logs — show actionable message
-                setSchedule({ error: body.error || "Please log at least one activity before generating a schedule." });
-              } else if (r.status === 429 || body?.error === "RATE_LIMIT") {
-                setSchedule({
-                  error: "RATE_LIMIT",
-                  message: body?.message || "API rate limit reached. Please wait a minute and try again.",
-                });
-              } else if (!r.ok) {
-                setSchedule({ error: body?.error || `Server error (${r.status}). Please try again.` });
-              } else {
-                setSchedule(body);
-              }
+          // Prevent generating new schedule for a past date
+          if (selectedDate < getLocalDateString()) {
+            setSchedule({ error: "No historical schedule recorded for this past date." });
+            setSchedLoading(false);
+            clearTimeout(slowTimer);
+            setSchedSlowLoad(false);
+          } else {
+            // Step 2: Generate fresh schedule via Gemini
+            fetch(`${API}/ai/generate-schedule`, {
+              method: "POST",
+              headers: { Authorization: `Bearer ${t}`, "Content-Type": "application/json" },
+              body: JSON.stringify({ date: selectedDate })
             })
-            .catch(() => {
-              setSchedule({ error: "Cannot reach the server. The backend may be waking up — please retry in 30 seconds." });
-            })
-            .finally(() => {
-              clearTimeout(slowTimer);
-              setSchedSlowLoad(false);
-              setSchedLoading(false);
-            });
+              .then(async r => {
+                const body = await r.json();
+                if (r.status === 400) {
+                  setSchedule({ error: body.error || "Please log at least one activity before generating a schedule." });
+                } else if (r.status === 429 || body?.error === "RATE_LIMIT") {
+                  setSchedule({
+                    error: "RATE_LIMIT",
+                    message: body?.message || "API rate limit reached. Please wait a minute and try again.",
+                  });
+                } else if (!r.ok) {
+                  setSchedule({ error: body?.error || `Server error (${r.status}). Please try again.` });
+                } else {
+                  setSchedule(body);
+                }
+              })
+              .catch(() => {
+                setSchedule({ error: "Cannot reach the server. The backend may be waking up — please retry in 30 seconds." });
+              })
+              .finally(() => {
+                clearTimeout(slowTimer);
+                setSchedSlowLoad(false);
+                setSchedLoading(false);
+              });
+          }
         }
       })
       .catch(() => {
@@ -240,7 +247,7 @@ export default function Dashboard() {
             <div style={{ fontSize: "2.5rem", fontWeight: 800, color: "var(--text-primary)" }}>
               {insightsLoading ? "..." : (insights ? (
                 <>
-                  {Math.floor(insights.stats.total_hours)}h <span style={{fontSize: "1rem", color: "var(--text-secondary)"}}>{Math.round((insights.stats.total_hours % 1) * 60)}m</span>
+                  {Math.floor(insights.stats?.daily_hours ?? insights.stats.total_hours)}h <span style={{fontSize: "1rem", color: "var(--text-secondary)"}}>{Math.round(((insights.stats?.daily_hours ?? insights.stats.total_hours) % 1) * 60)}m</span>
                 </>
               ) : "0h")}
             </div>
@@ -263,13 +270,13 @@ export default function Dashboard() {
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "1rem" }}>
           {[
-            { icon: "🎯", label: "Sessions",     sub: "logged",           val: insights ? `${insights.stats.total_sessions}`      : "—", color: "#ea580c" },
+            { icon: "🎯", label: selectedDate < getLocalDateString() ? "Daily Sessions" : "Total Sessions", sub: "logged",           val: insights ? `${insights.stats?.daily_sessions ?? insights.stats.total_sessions}` : "—", color: "#ea580c" },
             { icon: "🔥", label: "Streak",       sub: "consecutive days", val: insights ? `${insights.stats.streak_days}d`         : "—", color: "#facc15" },
-            { icon: "✅", label: "Tasks Done",   sub: "completed",        val: insights ? `${insights.stats.tasks_completed}`     : "—", color: "#10b981" },
-            { icon: "⏳", label: "Pending",      sub: "tasks left",       val: insights ? `${insights.stats.tasks_pending}`       : "—", color: "#6366f1" },
+            { icon: "✅", label: selectedDate < getLocalDateString() ? "Daily Tasks" : "Total Tasks",   sub: "completed",        val: insights ? `${insights.stats?.daily_tasks ?? insights.stats.tasks_completed}` : "—", color: "#10b981" },
+            { icon: "⏳", label: "Pending",      sub: "tasks left",       val: insights && selectedDate === getLocalDateString() ? `${insights.stats.tasks_pending}` : "—", color: "#6366f1" },
           ].map(s => (
             <div key={s.label} className="glass-panel animate-fade-in"
-              style={{ padding: "1.25rem 1rem", textAlign: "center", borderTop: `3px solid ${s.color}`, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+              style={{ padding: "1.25rem 1rem", textAlign: "center", borderTop: `3px solid ${s.color}`, display: "flex", flexDirection: "column", justifyContent: "center", opacity: s.val === "—" ? 0.3 : 1 }}>
               <div style={{ fontSize: "1.4rem", marginBottom: "0.2rem" }}>{s.icon}</div>
               <div style={{ fontSize: "1.5rem", fontWeight: 800, color: "var(--text-primary)", lineHeight: 1 }}>
                 {insightsLoading ? "…" : s.val}
@@ -441,45 +448,7 @@ export default function Dashboard() {
             {/* Right Side Column (Tasks/Time Tracker) */}
             <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
                 
-                {/* Tasks Module Mockup */}
-                <div className="glass-panel" style={{ padding: "1.5rem" }}>
-                    <h3 style={{ margin: "0 0 1rem", fontSize: "1.1rem", fontWeight: 700 }}>Today's Tasks</h3>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "white", padding: "10px", borderRadius: "12px", boxShadow: "0 2px 6px rgba(0,0,0,0.02)" }}>
-                            <div>
-                                <div style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text-primary)" }}>App Design</div>
-                            </div>
-                            <div style={{display: "flex", gap: "8px", alignItems: "center"}}>
-                                <span className="badge badge-orange">High</span>
-                                <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: 600 }}>4h</span>
-                            </div>
-                        </div>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "white", padding: "10px", borderRadius: "12px", boxShadow: "0 2px 6px rgba(0,0,0,0.02)" }}>
-                            <div>
-                                <div style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text-primary)" }}>Team Meeting</div>
-                            </div>
-                            <div style={{display: "flex", gap: "8px", alignItems: "center"}}>
-                                <span className="badge badge-gray">Mid</span>
-                                <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: 600 }}>30m</span>
-                            </div>
-                        </div>
-                    </div>
-                    <button className="modern-btn" style={{ background: "white", color: "var(--text-primary)", border: "1px solid rgba(0,0,0,0.1)", fontSize: "0.9rem", padding: "10px", marginTop: "1rem" }}>
-                        Add New Task
-                    </button>
-                </div>
 
-                {/* Goals Overview (Orange style mockup) */}
-                <div className="glass-panel glass-panel-orange" style={{ padding: "1.5rem" }}>
-                    <h3 style={{ margin: "0 0 0.5rem", fontSize: "1.1rem", fontWeight: 700 }}>Goals Overview</h3>
-                    <p style={{ fontSize: "0.85rem", opacity: 0.9, marginBottom: "1rem" }}>Your top priorities aligned with AI recommendations.</p>
-                    <div style={{ background: "rgba(255,255,255,0.2)", padding: "12px", borderRadius: "10px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <span style={{ fontSize: "0.9rem", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px" }}>
-                          🎯 Current Focus
-                        </span>
-                        <span style={{ fontSize: "0.8rem", background: "white", color: "#ea580c", padding: "2px 8px", borderRadius: "6px", fontWeight: 700 }}>Active</span>
-                    </div>
-                </div>
 
                 {/* Time Tracker */}
                 <div className="glass-panel" style={{ padding: "1.5rem", display: "flex", flexDirection: "column", alignItems: "center" }}>
@@ -489,7 +458,7 @@ export default function Dashboard() {
                     </div>
                     <div style={{ width: "140px", height: "140px", position: "relative" }}>
                         <CircularProgressbar
-                            value={insights ? (insights.stats.total_hours % 8) / 8 * 100 : 75}
+                            value={insights ? ((insights.stats?.daily_hours ?? insights.stats.total_hours) % 8) / 8 * 100 : 75}
                             strokeWidth={8}
                             styles={buildStyles({
                                 rotation: 0.25,
@@ -503,7 +472,7 @@ export default function Dashboard() {
                         />
                         <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", textAlign: "center" }}>
                             <div style={{ fontSize: "1.8rem", fontWeight: 800, color: "var(--text-primary)", lineHeight: 1 }}>
-                                {insightsLoading ? "..." : (insights ? `${String(Math.floor(insights.stats.total_hours)).padStart(2, '0')}:${String(Math.round((insights.stats.total_hours % 1) * 60)).padStart(2, '0')}` : "00:00")}
+                                {insightsLoading ? "..." : (insights ? `${String(Math.floor(insights.stats?.daily_hours ?? insights.stats.total_hours)).padStart(2, '0')}:${String(Math.round(((insights.stats?.daily_hours ?? insights.stats.total_hours) % 1) * 60)).padStart(2, '0')}` : "00:00")}
                             </div>
                             <div style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--text-secondary)", letterSpacing: "1px" }}>HOURS</div>
                         </div>

@@ -348,9 +348,17 @@ def get_insights(current_user):
             )
         ).all()
 
+        # Segregate logs specifically for target_date vs all logs
+        daily_logs = [l for l in all_logs if l.created_at.date() == target_date]
+
         total_minutes = sum(l.duration_minutes or 0 for l in all_logs)
         total_hours = round(total_minutes / 60, 1)
         total_sessions = len(all_logs)
+
+        # Daily stats specifically for target_date snapshot
+        daily_minutes = sum(l.duration_minutes or 0 for l in daily_logs)
+        daily_hours = round(daily_minutes / 60, 1)
+        daily_sessions = len(daily_logs)
 
         # Activity type breakdown for pie chart (from all historical logs up to date)
         type_breakdown = defaultdict(int)
@@ -394,6 +402,16 @@ def get_insights(current_user):
                 StudyPlan.deadline <= end_of_target
             )
         ).count()
+        # Daily tasks done exactly on target_date
+        daily_tasks_done = StudyPlan.query.filter(
+            and_(
+                StudyPlan.user_id == current_user.id,
+                StudyPlan.status == 'completed',
+                StudyPlan.completed_at >= datetime.combine(target_date, time.min),
+                StudyPlan.completed_at <= end_of_target
+            )
+        ).count() if hasattr(StudyPlan, 'completed_at') else plans_done  # Fallback to total if no completed_at
+        
         # For pending, we might just show all currently pending, or pending relative to target_date. Let's just keep 'pending' overall
         plans_pending = StudyPlan.query.filter_by(user_id=current_user.id, status='pending').count()
 
@@ -445,8 +463,11 @@ def get_insights(current_user):
             "stats": {
                 "total_hours": total_hours,
                 "total_sessions": total_sessions,
+                "daily_hours": daily_hours,
+                "daily_sessions": daily_sessions,
                 "streak_days": streak,
                 "tasks_completed": plans_done,
+                "daily_tasks": daily_tasks_done,
                 "tasks_pending": plans_pending,
             },
             "daily_chart": last_7_days,
