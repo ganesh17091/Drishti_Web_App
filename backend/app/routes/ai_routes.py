@@ -228,9 +228,39 @@ def generate_schedule(current_user):
         )
         return jsonify({"error": "Failed to generate schedule. Please try again."}), 500
 
-# Fix #3: removed orphaned /recommendations endpoint that used the wrong
-# recommendation_type ("resources" instead of "resource_links") and shadowed
-# the real resources cache. Use GET /ai/resources instead.
+# Replace the removed recommendation endpoint with its correct separate function for the career roadmap
+@ai_bp.route('/recommendations', methods=['GET'])
+@token_required
+def get_recommendations(current_user):
+    """Returns AI-curated career roadmap, books, and research papers."""
+    try:
+        cached = AIRecommendation.query.filter_by(
+            user_id=current_user.id,
+            recommendation_type="career_roadmap"
+        ).order_by(AIRecommendation.created_at.desc()).first()
+
+        if cached:
+            return jsonify(cached.content), 200
+
+        profile = UserProfile.query.filter_by(user_id=current_user.id).first()
+        if not profile:
+            return jsonify({"error": "Profile not found. Complete onboarding first."}), 404
+
+        recs_data = ai_engine.generate_recommendations(profile)
+        if "error" in recs_data:
+            return jsonify(recs_data), 429 if recs_data.get("error") == "RATE_LIMIT" else 500
+
+        db.session.add(AIRecommendation(
+            user_id=current_user.id,
+            recommendation_type="career_roadmap",
+            content=recs_data
+        ))
+        db.session.commit()
+        return jsonify(recs_data), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
 
 @ai_bp.route('/schedule', methods=['GET'])
 @token_required
