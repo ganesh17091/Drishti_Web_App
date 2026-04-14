@@ -7,7 +7,16 @@ import {
 } from "recharts";
 
 type InsightData = {
-  stats: { total_hours: number; total_sessions: number; streak_days: number; tasks_completed: number; tasks_pending: number };
+  stats: { 
+    total_hours: number; 
+    total_sessions: number; 
+    daily_hours?: number; 
+    daily_sessions?: number; 
+    streak_days: number; 
+    tasks_completed: number; 
+    daily_tasks?: number; 
+    tasks_pending: number 
+  };
   daily_chart: { day: string; hours: number }[];
   ai_analysis: { productivity_level: string; insights: string };
 };
@@ -19,6 +28,7 @@ const NAV_ITEMS = [
   { href: "/recommendations", icon: "🧭", label: "AI Recommendations",  color: "#ec4899" },
   { href: "/resources",       icon: "🔗", label: "Learning Resources",  color: "#6366f1" },
   { href: "/insights",        icon: "📊", label: "Performance Insights", color: "#10b981" },
+  { href: "/history",         icon: "🕰️", label: "History & Activities",color: "#64748b" },
   { href: "/wellbeing",       icon: "🌿", label: "Digital Wellbeing",   color: "#34d399" },
   { href: "/profile",         icon: "👤", label: "Edit Profile",         color: "#94a3b8" },
 ];
@@ -47,12 +57,18 @@ export default function Dashboard() {
   const [insightsLoading, setInsightsLoading] = useState(true);
   const [schedSlowLoad, setSchedSlowLoad] = useState(false);
 
-  const getLocalDateString = (d: Date = new Date()) => {
+  const getLocalDateString = useCallback((d: Date = new Date()) => {
     const pad = (n: number) => n.toString().padStart(2, '0');
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-  };
+  }, []);
 
   const [selectedDate, setSelectedDate] = useState(() => getLocalDateString());
+
+  // Prevent shifting back in dashboard
+  useEffect(() => {
+    const today = getLocalDateString();
+    if (selectedDate !== today) setSelectedDate(today);
+  }, [selectedDate, getLocalDateString]);
 
   const token = () => localStorage.getItem("token");
   const API = process.env.NEXT_PUBLIC_API_URL;
@@ -140,7 +156,7 @@ export default function Dashboard() {
       .then(d => { if (!d.error) setInsights(d); })
       .catch(() => {})
       .finally(() => setInsightsLoading(false));
-  }, [router, API, selectedDate]);
+  }, [router, API, selectedDate, getLocalDateString]);
 
   useEffect(() => {
     loadData();
@@ -227,15 +243,15 @@ export default function Dashboard() {
         {/* Date Selector Row */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
           <div>
-             <h1 style={{ margin: 0, fontSize: "1.8rem" }}>
-               {selectedDate === getLocalDateString() ? "Today's Insights" : `Insights for ${selectedDate}`}
-             </h1>
+             <h1 style={{ margin: 0, fontSize: "1.8rem" }}>Today's Dashboard</h1>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <label style={{ color: "var(--text-secondary)", fontSize: "0.9rem", fontWeight: 600 }}>Shift Date:</label>
-            <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} max={getLocalDateString()}
-              style={{ padding: "8px 12px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.2)", color: "white", outline: "none", fontFamily: "Outfit", colorScheme: "dark" }}
-            />
+          <div>
+              <button 
+                onClick={() => router.push("/history")}
+                className="modern-btn"
+                style={{ padding: "8px 16px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.2)", color: "white", fontSize: "0.9rem", cursor: "pointer", display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span>🕰️</span> View Past History
+              </button>
           </div>
         </div>
 
@@ -270,10 +286,10 @@ export default function Dashboard() {
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "1rem" }}>
           {[
-            { icon: "🎯", label: selectedDate < getLocalDateString() ? "Daily Sessions" : "Total Sessions", sub: "logged",           val: insights ? `${insights.stats?.daily_sessions ?? insights.stats.total_sessions}` : "—", color: "#ea580c" },
+            { icon: "🎯", label: "Daily Sessions", sub: "logged",           val: insights ? `${insights.stats?.daily_sessions ?? insights.stats.total_sessions}` : "—", color: "#ea580c" },
             { icon: "🔥", label: "Streak",       sub: "consecutive days", val: insights ? `${insights.stats.streak_days}d`         : "—", color: "#facc15" },
-            { icon: "✅", label: selectedDate < getLocalDateString() ? "Daily Tasks" : "Total Tasks",   sub: "completed",        val: insights ? `${insights.stats?.daily_tasks ?? insights.stats.tasks_completed}` : "—", color: "#10b981" },
-            { icon: "⏳", label: "Pending",      sub: "tasks left",       val: insights && selectedDate === getLocalDateString() ? `${insights.stats.tasks_pending}` : "—", color: "#6366f1" },
+            { icon: "✅", label: "Daily Tasks",   sub: "completed",        val: insights ? `${insights.stats?.daily_tasks ?? insights.stats.tasks_completed}` : "—", color: "#10b981" },
+            { icon: "⏳", label: "Pending",      sub: "tasks left",       val: insights ? `${insights.stats.tasks_pending}` : "—", color: "#6366f1" },
           ].map(s => (
             <div key={s.label} className="glass-panel animate-fade-in"
               style={{ padding: "1.25rem 1rem", textAlign: "center", borderTop: `3px solid ${s.color}`, display: "flex", flexDirection: "column", justifyContent: "center", opacity: s.val === "—" ? 0.3 : 1 }}>
