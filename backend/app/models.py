@@ -48,7 +48,27 @@ class UserProfile(db.Model):
     goals = db.Column(db.Text)
     interests = db.Column(db.Text)
     daily_available_hours = db.Column(db.Integer)
+    college_timing = db.Column(db.String(150))
+    sleep_schedule = db.Column(db.String(150))
+    weak_subjects = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    def to_dict(self, include_sensitive=False):
+        data = {
+            'id': self.id,
+            'user_id': self.user_id,
+            'age': self.age,
+            'current_role': self.current_role,
+            'goals': self.goals,
+            'interests': self.interests,
+            'daily_available_hours': self.daily_available_hours,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
+        if include_sensitive:
+            data['college_timing'] = self.college_timing
+            data['sleep_schedule'] = self.sleep_schedule
+            data['weak_subjects'] = self.weak_subjects
+        return data
 
 class UserActivityLog(db.Model):
     __tablename__ = 'user_activity_logs'

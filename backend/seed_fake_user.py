@@ -43,7 +43,10 @@ def seed_data():
             current_role="2nd Year B.Tech EE Student",
             goals="Crack UPSC Civil Services Examination. Maintain good grades in electrical engineering.",
             interests="Indian Polity, Engineering Mathematics, Current Affairs, International Relations",
-            daily_available_hours=6
+            daily_available_hours=6,
+            college_timing="9:00 AM to 4:00 PM",
+            sleep_schedule="11:30 PM to 6:30 AM",
+            weak_subjects="Engineering Mathematics, Modern History"
         )
         db.session.add(profile)
         db.session.commit()

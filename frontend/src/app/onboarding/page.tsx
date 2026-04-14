@@ -9,6 +9,9 @@ export default function Onboarding() {
   const [goals, setGoals] = useState("");
   const [interests, setInterests] = useState("");
   const [hours, setHours] = useState(4);
+  const [collegeTiming, setCollegeTiming] = useState("");
+  const [sleepSchedule, setSleepSchedule] = useState("");
+  const [weakSubjects, setWeakSubjects] = useState("");
   const [loading, setLoading] = useState(false);
 
   const submitProfile = async (e: React.FormEvent) => {
@@ -37,6 +40,9 @@ export default function Onboarding() {
           goals,
           interests,
           daily_available_hours: hours,
+          college_timing: collegeTiming,
+          sleep_schedule: sleepSchedule,
+          weak_subjects: weakSubjects,
         }),
       });
 
@@ -71,6 +77,15 @@ export default function Onboarding() {
 
           <label style={{ display: "block", marginBottom: "0.5rem" }}>Daily Available Free Hours</label>
           <input type="number" className="modern-input" min="1" max="24" value={hours} onChange={e => setHours(Number(e.target.value))} required />
+
+          <label style={{ display: "block", marginBottom: "0.5rem" }}>College / Work Timings</label>
+          <input type="text" className="modern-input" placeholder="e.g. 9 AM to 4 PM" value={collegeTiming} onChange={e => setCollegeTiming(e.target.value)} required />
+
+          <label style={{ display: "block", marginBottom: "0.5rem" }}>Sleep Schedule</label>
+          <input type="text" className="modern-input" placeholder="e.g. 11 PM to 7 AM" value={sleepSchedule} onChange={e => setSleepSchedule(e.target.value)} required />
+
+          <label style={{ display: "block", marginBottom: "0.5rem" }}>Weak Subjects / Challenges</label>
+          <input type="text" className="modern-input" placeholder="e.g. Mathematics, Procrastination" value={weakSubjects} onChange={e => setWeakSubjects(e.target.value)} required />
 
           <button type="submit" className="modern-btn" disabled={loading}>
             {loading ? "Syncing..." : "Finalize Profile"}

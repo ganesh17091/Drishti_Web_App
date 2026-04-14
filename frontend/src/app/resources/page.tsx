@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 
 // Utility to grab YouTube ID for embedding
 const getYoutubeId = (url: string) => {
-  const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^&]{11})/);
+  const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/))([^&]{11})/);
   return match ? match[1] : null;
 };
 

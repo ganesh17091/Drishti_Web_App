@@ -1,7 +1,8 @@
 import logging
 from flask import Blueprint, request, jsonify
-from datetime import date, timedelta
+from datetime import datetime, date, time, timedelta, timezone
 from collections import defaultdict
+from sqlalchemy import and_
 from app.extensions import db
 from app.models import UserProfile, UserActivityLog, AIRecommendation, UserSchedule, StudyPlan
 from app.utils.token_service import token_required
@@ -31,6 +32,9 @@ def onboarding(current_user):
         profile.goals = data.get('goals')
         profile.interests = data.get('interests')
         profile.daily_available_hours = data.get('daily_available_hours')
+        profile.college_timing = data.get('college_timing')
+        profile.sleep_schedule = data.get('sleep_schedule')
+        profile.weak_subjects = data.get('weak_subjects')
         
         db.session.commit()
         return jsonify({"message": "Onboarding profile saved successfully"}), 201
@@ -135,15 +139,25 @@ def generate_schedule(current_user):
             len(logs), current_user.id
         )
 
+        # Determine target date
+        target_date_str = data.get("date") if data else request.args.get("date")
+        if target_date_str:
+            try:
+                target_date = datetime.strptime(target_date_str, "%Y-%m-%d").date()
+            except ValueError:
+                target_date = date.today()
+        else:
+            target_date = date.today()
+
         user_request = data.get("request") if data else None
 
-        # Fix #6: If schedule for today already exists and user didn't explicitly request an update via chatbot, return existing.
+        # Fix #6: If schedule for target_date already exists and user didn't explicitly request an update via chatbot, return existing.
         if not user_request:
             existing = UserSchedule.query.filter_by(
-                user_id=current_user.id, schedule_date=date.today()
+                user_id=current_user.id, schedule_date=target_date
             ).first()
             if existing:
-                logger.info("[generate-schedule] Schedule already exists for user_id=%s. Returning existing.", current_user.id)
+                logger.info("[generate-schedule] Schedule already exists for user_id=%s date=%s. Returning existing.", current_user.id, target_date)
                 return jsonify(existing.schedule_data), 200
 
         # ── 2. CALL AI API (isolated to catch API-specific failures) ─────────────
@@ -187,19 +201,19 @@ def generate_schedule(current_user):
 
         # ── 4. PERSIST to DB ─────────────────────────────────────────────────────
         sched = UserSchedule.query.filter_by(
-            user_id=current_user.id, schedule_date=date.today()
+            user_id=current_user.id, schedule_date=target_date
         ).first()
         if sched:
             sched.schedule_data = schedule_json
-            logger.info("[generate-schedule] Updated existing schedule for user_id=%s", current_user.id)
+            logger.info("[generate-schedule] Updated existing schedule for user_id=%s date=%s", current_user.id, target_date)
         else:
             sched = UserSchedule(
                 user_id=current_user.id,
-                schedule_date=date.today(),
+                schedule_date=target_date,
                 schedule_data=schedule_json
             )
             db.session.add(sched)
-            logger.info("[generate-schedule] Created new schedule for user_id=%s", current_user.id)
+            logger.info("[generate-schedule] Created new schedule for user_id=%s date=%s", current_user.id, target_date)
 
         db.session.commit()
         logger.info("[generate-schedule] Schedule saved successfully for user_id=%s", current_user.id)
@@ -218,11 +232,20 @@ def generate_schedule(current_user):
 # recommendation_type ("resources" instead of "resource_links") and shadowed
 # the real resources cache. Use GET /ai/resources instead.
 
-@ai_bp.route('/schedule/today', methods=['GET'])
+@ai_bp.route('/schedule', methods=['GET'])
 @token_required
-def get_today_schedule(current_user):
+def get_schedule_by_date(current_user):
     try:
-        sched = UserSchedule.query.filter_by(user_id=current_user.id, schedule_date=date.today()).first()
+        req_date_str = request.args.get('date')
+        if req_date_str:
+            try:
+                target_date = datetime.strptime(req_date_str, "%Y-%m-%d").date()
+            except ValueError:
+                target_date = date.today()
+        else:
+            target_date = date.today()
+            
+        sched = UserSchedule.query.filter_by(user_id=current_user.id, schedule_date=target_date).first()
         if not sched:
             return jsonify({"schedule": []}), 200
         return jsonify(sched.schedule_data), 200
@@ -307,13 +330,29 @@ def get_insights(current_user):
         if not profile:
             return jsonify({"error": "Profile not found. Complete onboarding first."}), 404
 
-        all_logs = UserActivityLog.query.filter_by(user_id=current_user.id).all()
+        req_date_str = request.args.get('date')
+        if req_date_str:
+            try:
+                target_date = datetime.strptime(req_date_str, "%Y-%m-%d").date()
+            except ValueError:
+                target_date = date.today()
+        else:
+            target_date = date.today()
+
+        # All logs up to the end of target_date, plus one day to include that day's events fully (since created_at is datetime)
+        end_of_target = datetime.combine(target_date, time.max)
+        all_logs = UserActivityLog.query.filter(
+            and_(
+                UserActivityLog.user_id == current_user.id,
+                UserActivityLog.created_at <= end_of_target
+            )
+        ).all()
 
         total_minutes = sum(l.duration_minutes or 0 for l in all_logs)
         total_hours = round(total_minutes / 60, 1)
         total_sessions = len(all_logs)
 
-        # Activity type breakdown for pie chart
+        # Activity type breakdown for pie chart (from all historical logs up to date)
         type_breakdown = defaultdict(int)
         for l in all_logs:
             atype = l.activity_type or "other"
@@ -323,14 +362,14 @@ def get_insights(current_user):
             for t, m in type_breakdown.items()
         ]
 
-        # Daily activity last 7 days for bar chart
+        # Daily activity last 7 days ending at target_date for bar chart
         daily = defaultdict(int)
         for l in all_logs:
             day_key = l.created_at.strftime("%a %d/%m")
             daily[day_key] += l.duration_minutes or 0
         last_7_days = []
         for i in range(6, -1, -1):
-            d = date.today() - timedelta(days=i)
+            d = target_date - timedelta(days=i)
             key = d.strftime("%a %d/%m")
             last_7_days.append({
                 "day": d.strftime("%a"),
@@ -339,49 +378,68 @@ def get_insights(current_user):
                 "hours": round(daily.get(key, 0) / 60, 2)
             })
 
-        # Streak calculation
+        # Streak calculation up to target_date
         active_dates = set(l.created_at.date() for l in all_logs)
         streak = 0
-        check_day = date.today()
+        check_day = target_date
         while check_day in active_dates:
             streak += 1
             check_day -= timedelta(days=1)
 
-        # Study plan stats
-        plans_done = StudyPlan.query.filter_by(user_id=current_user.id, status='completed').count()
+        # Study plan stats up to target_date
+        plans_done = StudyPlan.query.filter(
+            and_(
+                StudyPlan.user_id == current_user.id, 
+                StudyPlan.status == 'completed',
+                StudyPlan.deadline <= end_of_target
+            )
+        ).count()
+        # For pending, we might just show all currently pending, or pending relative to target_date. Let's just keep 'pending' overall
         plans_pending = StudyPlan.query.filter_by(user_id=current_user.id, status='pending').count()
 
         # ── AI Analysis: cached per day to avoid hitting rate limits on every page load ──
-        today_str = date.today().isoformat()
-        cached_analysis = AIRecommendation.query.filter_by(
-            user_id=current_user.id,
-            recommendation_type="insights_daily"
-        ).order_by(AIRecommendation.created_at.desc()).first()
+        target_date_str_iso = target_date.isoformat()
+        cached_analysis = AIRecommendation.query.filter(
+            and_(
+                AIRecommendation.user_id == current_user.id,
+                AIRecommendation.recommendation_type == f"insights_{target_date_str_iso}"
+            )
+        ).first()
+
+        # Also support legacy "insights_daily" if date is today
+        if not cached_analysis and target_date == date.today():
+             cached_analysis = AIRecommendation.query.filter_by(
+                user_id=current_user.id,
+                recommendation_type="insights_daily"
+             ).order_by(AIRecommendation.created_at.desc()).first()
 
         ai_analysis = None
-        # Use cache if it was generated today
-        if cached_analysis and cached_analysis.created_at.date() == date.today():
+        # Use cache if it exists for the target date
+        if cached_analysis and (cached_analysis.recommendation_type == f"insights_{target_date_str_iso}" or (cached_analysis.recommendation_type == "insights_daily" and cached_analysis.created_at.date() == date.today())):
             ai_analysis = cached_analysis.content
-            logger.info("[insights] Using cached AI analysis for user_id=%s date=%s", current_user.id, today_str)
+            logger.info("[insights] Using cached AI analysis for user_id=%s date=%s", current_user.id, target_date_str_iso)
         else:
-            # Only call AI if no cache for today AND there are logs to analyze
-            if all_logs:
+            # Only call AI if no cache for that date AND there are logs to analyze
+            # For historical dates, if they had logs, we generate it. If they had absolutely no logs on that day, no point generating.
+            logs_on_target_date = [l for l in all_logs if l.created_at.date() == target_date]
+            if logs_on_target_date or target_date == date.today():
                 recent_logs = sorted(all_logs, key=lambda l: l.created_at, reverse=True)[:20]
-                ai_analysis = ai_engine.analyze_user(profile, recent_logs)
+                if recent_logs:
+                    ai_analysis = ai_engine.analyze_user(profile, recent_logs)
 
-                if isinstance(ai_analysis, dict) and "error" not in ai_analysis:
-                    # Save to cache
-                    db.session.add(AIRecommendation(
-                        user_id=current_user.id,
-                        recommendation_type="insights_daily",
-                        content=ai_analysis
-                    ))
-                    db.session.commit()
-                    logger.info("[insights] Fresh AI analysis cached for user_id=%s", current_user.id)
-                elif isinstance(ai_analysis, dict) and ai_analysis.get("error") == "RATE_LIMIT":
-                    # If rate limited, still return stats without AI analysis
-                    logger.warning("[insights] Rate limit hit for AI analysis, returning stats only for user_id=%s", current_user.id)
-                    ai_analysis = None
+                    if isinstance(ai_analysis, dict) and "error" not in ai_analysis:
+                        # Save to cache with date specific key
+                        db.session.add(AIRecommendation(
+                            user_id=current_user.id,
+                            recommendation_type=f"insights_{target_date_str_iso}",
+                            content=ai_analysis
+                        ))
+                        db.session.commit()
+                        logger.info("[insights] Fresh AI analysis cached for user_id=%s for date=%s", current_user.id, target_date_str_iso)
+                    elif isinstance(ai_analysis, dict) and ai_analysis.get("error") == "RATE_LIMIT":
+                        # If rate limited, still return stats without AI analysis
+                        logger.warning("[insights] Rate limit hit for AI analysis, returning stats only for user_id=%s", current_user.id)
+                        ai_analysis = None
 
         return jsonify({
             "stats": {

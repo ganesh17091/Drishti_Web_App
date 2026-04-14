@@ -94,7 +94,10 @@ def analyze_user(user_profile, activity_logs):
         "current_role": user_profile.current_role,
         "goals": user_profile.goals,
         "interests": user_profile.interests,
-        "daily_available_hours": user_profile.daily_available_hours
+        "daily_available_hours": user_profile.daily_available_hours,
+        "weak_subjects": user_profile.weak_subjects,
+        "college_timing": user_profile.college_timing,
+        "sleep_schedule": user_profile.sleep_schedule
     }
     logs_data = [
         {"type": log.activity_type, "desc": log.description, "duration": log.duration_minutes}
@@ -117,10 +120,14 @@ def generate_daily_schedule(user_profile, activity_logs, user_request=None):
     profile_data = {
         "role": user_profile.current_role,
         "goals": user_profile.goals,
-        "free_hours": user_profile.daily_available_hours
+        "free_hours": user_profile.daily_available_hours,
+        "college_timing": user_profile.college_timing,
+        "sleep_schedule": user_profile.sleep_schedule,
+        "weak_subjects": user_profile.weak_subjects
     }
     sys_prompt = (
         "You are an expert schedule building AI. Output a highly detailed, optimized daily schedule for the user's free hours. "
+        "CRITICAL RULE: DO NOT schedule any deep work or tasks during the user's 'college_timing' or 'sleep_schedule'. "
         "You MUST respond with ONLY valid JSON. Focus on extremely specific sub-tasks rather than vague blocks. "
         "For each scheduling block, provide granular detail and an actionable strategy natively within the 'task' field. "
         "Use exactly this format:\n"

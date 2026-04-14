@@ -223,7 +223,7 @@ export default function ChatWidget() {
                       maxWidth: "85%", padding: "10px 14px",
                       background: m.role === "user" ? "var(--primary)" : "rgba(255,255,255,0.08)",
                       borderRadius: m.role === "user" ? "14px 14px 4px 14px" : "14px 14px 14px 4px",
-                      fontSize: "0.85rem", lineHeight: 1.5,
+                      fontSize: "0.85rem", lineHeight: 1.5, color: "white"
                     }}>
                       {m.message}
                     </div>
@@ -242,7 +242,7 @@ export default function ChatWidget() {
 
             {/* Input */}
             <div style={{ padding: "0.8rem", borderTop: "1px solid rgba(255,255,255,0.08)", display: "flex", gap: "8px" }}>
-              <input value={input} onChange={e => setInput(e.target.value)}
+              <input id="chat-widget-input" name="chat-widget-input" value={input} onChange={e => setInput(e.target.value)}
                 onKeyDown={e => { if (e.key === "Enter") sendMessage(); }}
                 placeholder="Ask FocusBot..."
                 style={{

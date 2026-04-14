@@ -142,6 +142,7 @@ function AuthComponent() {
       <form onSubmit={handleSubmit}>
         {!isLogin && (
           <input 
+            id="signup-name" name="signup-name"
             type="text" 
             className="modern-input" 
             placeholder="Full Name" 
@@ -152,6 +153,7 @@ function AuthComponent() {
         )}
 
         <input 
+          id="auth-email" name="auth-email"
           type="email" 
           className="modern-input" 
           placeholder="Email Address" 
@@ -161,6 +163,7 @@ function AuthComponent() {
         />
 
         <input 
+          id="auth-password" name="auth-password"
           type="password" 
           className="modern-input" 
           placeholder="Password" 

@@ -68,6 +68,7 @@ export default function ForgotPasswordPage() {
 
         <form onSubmit={handleSubmit}>
           <input 
+            id="forgot-email" name="forgot-email"
             type="email" 
             className="modern-input" 
             placeholder="Email Address" 

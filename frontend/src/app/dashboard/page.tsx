@@ -47,6 +47,13 @@ export default function Dashboard() {
   const [insightsLoading, setInsightsLoading] = useState(true);
   const [schedSlowLoad, setSchedSlowLoad] = useState(false);
 
+  const getLocalDateString = (d: Date = new Date()) => {
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  };
+
+  const [selectedDate, setSelectedDate] = useState(() => getLocalDateString());
+
   const token = () => localStorage.getItem("token");
   const API = process.env.NEXT_PUBLIC_API_URL;
 
@@ -61,8 +68,8 @@ export default function Dashboard() {
     // Cold-start hint after 6 seconds
     const slowTimer = setTimeout(() => setSchedSlowLoad(true), 6000);
 
-    // Step 1: Check if today's schedule already exists
-    fetch(`${API}/ai/schedule/today`, {
+    // Step 1: Check if timeline schedule already exists
+    fetch(`${API}/ai/schedule?date=${selectedDate}`, {
       headers: { Authorization: `Bearer ${t}` },
     })
       .then(r => {
@@ -81,7 +88,8 @@ export default function Dashboard() {
           // Step 2: Generate fresh schedule via Gemini
           fetch(`${API}/ai/generate-schedule`, {
             method: "POST",
-            headers: { Authorization: `Bearer ${t}` },
+            headers: { Authorization: `Bearer ${t}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ date: selectedDate })
           })
             .then(async r => {
               const body = await r.json();
@@ -118,14 +126,14 @@ export default function Dashboard() {
 
     // Fetch insights (non-blocking)
     setInsightsLoading(true);
-    fetch(`${API}/ai/insights`, {
+    fetch(`${API}/ai/insights?date=${selectedDate}`, {
       headers: { Authorization: `Bearer ${t}` },
     })
       .then(r => r.json())
       .then(d => { if (!d.error) setInsights(d); })
       .catch(() => {})
       .finally(() => setInsightsLoading(false));
-  }, [router, API]);
+  }, [router, API, selectedDate]);
 
   useEffect(() => {
     loadData();
@@ -208,6 +216,21 @@ export default function Dashboard() {
 
       {/* ─── RIGHT PANEL ──────────────────────────────────── */}
       <main style={{ flex: 1, display: "flex", flexDirection: "column", gap: "1.5rem", minWidth: 0 }}>
+
+        {/* Date Selector Row */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+          <div>
+             <h1 style={{ margin: 0, fontSize: "1.8rem" }}>
+               {selectedDate === getLocalDateString() ? "Today's Insights" : `Insights for ${selectedDate}`}
+             </h1>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <label style={{ color: "var(--text-secondary)", fontSize: "0.9rem", fontWeight: 600 }}>Shift Date:</label>
+            <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} max={getLocalDateString()}
+              style={{ padding: "8px 12px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.2)", color: "white", outline: "none", fontFamily: "Outfit", colorScheme: "dark" }}
+            />
+          </div>
+        </div>
 
         {/* Row 0: Stats Strip (Time Analytics overview mock) */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "1rem" }}>
