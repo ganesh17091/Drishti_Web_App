@@ -186,7 +186,7 @@ function AuthComponent() {
       </form>
 
       <p style={{ textAlign: "center", marginTop: "2rem", fontSize: "0.95rem" }}>
-        {isLogin ? "New to Drishti?" : "Already have an account?"}{" "}
+        {isLogin ? "New to FocusPath?" : "Already have an account?"}{" "}
         <span 
           style={{ color: "var(--primary)", cursor: "pointer", fontWeight: "600", textDecoration: "underline" }}
           onClick={() => { setIsLogin(!isLogin); setMessage(null); setNeedsVerification(false); }}

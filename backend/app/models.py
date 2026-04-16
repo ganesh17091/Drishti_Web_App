@@ -107,6 +107,7 @@ class StudyPlan(db.Model):
     deadline = db.Column(db.DateTime, nullable=False)
     allocated_hours = db.Column(db.Float, default=0.0)
     status = db.Column(db.String(50), default='pending')
+    completed_at = db.Column(db.DateTime, nullable=True)  # Set when status becomes 'completed'
 
 class Skill(db.Model):
     __tablename__ = 'skills'

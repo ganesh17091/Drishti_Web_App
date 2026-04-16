@@ -26,7 +26,13 @@ class Config:
     SQLALCHEMY_ENGINE_OPTIONS = {
         "pool_pre_ping": True,
         "pool_recycle": 300,
-        "connect_args": {"connect_timeout": 10},
+        "connect_args": {
+            "connect_timeout": 10,
+            # Required for Supabase PgBouncer in transaction mode (port 6543):
+            # psycopg3 uses server-side prepared statements by default which are
+            # NOT compatible with PgBouncer transaction mode → random 500 errors.
+            "prepare_threshold": None,
+        },
     }
 
     # Brevo HTTP Email API Configuration

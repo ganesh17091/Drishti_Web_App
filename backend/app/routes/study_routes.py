@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify
 from app.extensions import db
 from app.models import StudyPlan
 from app.utils.token_service import token_required
-from datetime import datetime
+from datetime import datetime, timezone
 
 study_bp = Blueprint('study', __name__, url_prefix='/study')
 
@@ -63,6 +63,7 @@ def complete_plan(current_user, plan_id):
         if not plan:
             return jsonify({'error': 'Plan not found'}), 404
         plan.status = 'completed'
+        plan.completed_at = datetime.now(timezone.utc)
         db.session.commit()
         return jsonify({'message': 'Task marked as completed'}), 200
     except Exception as e:

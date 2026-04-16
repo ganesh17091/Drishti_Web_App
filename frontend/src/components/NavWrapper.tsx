@@ -10,7 +10,8 @@ type ExamItem = { id: number; title: string; days_left: number; emoji: string; c
 export default function NavWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const showNav = !PUBLIC_ROUTES.includes(pathname);
+  // Use startsWith so dynamic segments like /reset-password/abc123 are also treated as public
+  const showNav = !PUBLIC_ROUTES.some(r => pathname === r || pathname.startsWith(r + "/"));
   const [userName, setUserName] = useState<string>("");
   const [showMenu, setShowMenu] = useState(false);
   const [exams, setExams] = useState<ExamItem[]>([]);
@@ -60,7 +61,7 @@ export default function NavWrapper({ children }: { children: React.ReactNode }) 
           {!imgError ? (
             <img 
               src="/logo.png" 
-              alt="Drishti Logo" 
+              alt="FocusPath Logo" 
               style={{ height: "40px", objectFit: "contain" }} 
               onError={() => setImgError(true)} 
             />
@@ -69,7 +70,7 @@ export default function NavWrapper({ children }: { children: React.ReactNode }) 
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
             </div>
           )}
-          <span style={{ fontSize: "1.4rem", fontWeight: 800, color: "var(--text-primary)", fontFamily: "Outfit, sans-serif" }}>Drishti</span>
+          <span style={{ fontSize: "1.4rem", fontWeight: 800, color: "var(--text-primary)", fontFamily: "Outfit, sans-serif" }}>FocusPath</span>
         </button>
         
         {/* Search Bar - Center */}
@@ -147,7 +148,7 @@ export default function NavWrapper({ children }: { children: React.ReactNode }) 
                           {userName || "User"}
                         </div>
                         <div style={{ fontSize: "0.78rem", color: "var(--text-secondary)" }}>
-                          Drishti Account
+                          FocusPath Account
                         </div>
                       </div>
                     </div>

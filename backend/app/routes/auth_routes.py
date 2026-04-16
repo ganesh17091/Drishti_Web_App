@@ -93,28 +93,10 @@ def signup():
 
         logger.info("STEP 4 after DB - User staged")
 
-        # ── Step 5: Send verification email BEFORE committing ─────────────────
-        # If email fails, we roll back so no orphan user record is created.
-        logger.info(f"STEP 5 before email - Attempting to queue async verification email to: {email}")
-        try:
-            send_verification_email(email, raw_token, name)
-            logger.info(f"[SIGNUP] Verification email sent successfully to: {email}")
-        except EnvironmentError as env_err:
-            db.session.rollback()
-            logger.error(
-                f"[SIGNUP] Email config missing — cannot send verification to {email}: {str(env_err)}",
-                exc_info=True
-            )
-            return jsonify(_debug_error('Email service is not configured. Please contact support.', env_err)), 500
-        except Exception as smtp_err:
-            db.session.rollback()
-            logger.error(
-                f"[SIGNUP] SMTP delivery failed for {email}: {str(smtp_err)}",
-                exc_info=True
-            )
-            return jsonify(_debug_error('Failed to send verification email. Please try again.', smtp_err)), 500
-
-        # ── Step 6: Commit user to DB ─────────────────────────────────────────
+        # ── Step 5: Commit user to DB first ──────────────────────────────────
+        # Email is sent AFTER commit so that if the DB write fails the user
+        # is never persisted (no orphan token). If email fails after commit,
+        # the user can request a new link via /auth/resend-verification.
         logger.info("[SIGNUP] Committing new user to database")
         try:
             db.session.commit()
@@ -126,6 +108,30 @@ def signup():
                 exc_info=True
             )
             return jsonify(_debug_error('Database error. Please try again.', db_err)), 500
+
+        # ── Step 6: Send verification email AFTER committing ──────────────────
+        # If email fails the user is already in DB; they can use resend-verification.
+        logger.info(f"STEP 5 before email - Attempting to queue async verification email to: {email}")
+        try:
+            send_verification_email(email, raw_token, name)
+            logger.info(f"[SIGNUP] Verification email sent successfully to: {email}")
+        except EnvironmentError as env_err:
+            logger.error(
+                f"[SIGNUP] Email config missing — cannot send verification to {email}: {str(env_err)}",
+                exc_info=True
+            )
+            # User is saved; advise them to use resend-verification
+            return jsonify({
+                'message': 'Account created but email could not be sent. Use resend-verification to get your link.'
+            }), 201
+        except Exception as smtp_err:
+            logger.error(
+                f"[SIGNUP] Email delivery failed for {email}: {str(smtp_err)}",
+                exc_info=True
+            )
+            return jsonify({
+                'message': 'Account created but email could not be sent. Use resend-verification to get your link.'
+            }), 201
 
         return jsonify({
             'message': 'Verification email sent. Please check your inbox.'
