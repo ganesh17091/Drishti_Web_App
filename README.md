@@ -2,6 +2,11 @@
 
 A full-stack AI-powered web application that helps students with career planning, study planning, skill development, focus improvement, productivity tracking, and internship discovery.
 
+## 🌐 Live Deployment
+**The application is live and deployed in production!**
+- **Frontend**: [FocusPath Next.js App (Deployed)](#)
+- **Backend API**: [FocusPath Flask API (Render)](https://focuspath-backend.onrender.com)
+
 ## 🚀 Features
 
 - **Secure Authentication System** (Signup, Login, Logout, Forgot Password)
@@ -14,51 +19,62 @@ A full-stack AI-powered web application that helps students with career planning
 - **AI Chat Assistant** (Integrated chatbot for studying advice)
 - **Admin Dashboard** (User stats and task aggregations)
 
+## 💻 Tech Stack
+
+### Frontend
+- **Framework:** Next.js 16 (React 19)
+- **Language:** TypeScript
+- **Icons & Data Viz:** Lucide React, Recharts
+
+### Backend
+- **Framework:** Python 3 & Flask
+- **Database:** PostgreSQL (via Flask-SQLAlchemy)
+- **Authentication:** JWT, Flask-Bcrypt, Flask-Login
+- **AI Integrations:** OpenAI API Interface (Groq)
+
+### Deployment & Tools
+- **Providers:** Vercel (Frontend), Render (Backend)
+- **Production Server:** Gunicorn
+
 ## 📁 Folder Structure
 
 ```
 focuspath/
-├── app.py                  # Main Flask App
-├── config.py               # Application Configs
-├── models.py               # Database Schema (Users, Profiles, Plans)
-├── utils.py                # Token Generators
-├── routes/                 # Blueprint Controllers
-│   ├── admin_routes.py
-│   ├── ai_routes.py
-│   ├── auth_routes.py
-│   ├── dashboard_routes.py
-│   └── study_routes.py
-├── static/
-│   ├── css/
-│       └── main.css        # Core aesthetics
-├── templates/              # Jinja2 Layouts
-│   ├── admin/
-│   ├── auth/
-│   ├── dashboard/
-│   ├── base.html
-│   └── index.html
+├── frontend/               # Next.js React Frontend
+│   ├── src/
+│   │   ├── app/            # Next.js App Router pages
+│   │   ├── components/     # UI Components
+│   │   └── lib/            # API services and utilities
+│   └── package.json
+│
+├── backend/                # Flask Python Backend
+│   ├── app/                # Main Application Package
+│   │   ├── routes/         # API Blueprints
+│   │   ├── models/         # Database Models
+│   │   └── config.py
+│   ├── requirements.txt
+│   └── wsgi.py             # Render Entry Point
 ```
 
-## 🛠 Installation & Usage
+## 🛠 Local Development
 
-### 1. Requirements
-Ensure you have Python 3 installed. If you prefer virtual environments, set one up prior to installing dependencies.
-
-### 2. Install Dependencies
+### 1. Backend (Flask) Setup
 ```bash
-pip install Flask Flask-Login Flask-Mail bcrypt Flask-SQLAlchemy Flask-Bcrypt email-validator
+cd backend
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+flask run
 ```
+*The API will run on http://localhost:5000*
 
-### 3. Initialize Database
-The application natively creates the local database schemas upon the first run! No action is needed.
-
-### 4. Run the Server
+### 2. Frontend (Next.js) Setup
 ```bash
-python app.py
+cd frontend
+npm install
+npm run dev
 ```
-
-### 5. Open Web App
-Navigate to [http://127.0.0.1:5000](http://127.0.0.1:5000).
+*The web app will run on http://localhost:3000*
 
 ---
 *Built as the ideal platform for AI-powered student success.*
