@@ -184,6 +184,8 @@ def resend_verification():
 @auth_bp.route('/verify/<token>', methods=['GET'])
 def verify_email(token):
     frontend_url = os.environ.get("FRONTEND_URL", "").rstrip('/')
+    if frontend_url and not frontend_url.startswith('http'):
+        frontend_url = 'https://' + frontend_url
     if not frontend_url:
         logger.error("FRONTEND_URL environment variable is not set.")
         return "Server configuration error.", 500

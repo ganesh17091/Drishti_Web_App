@@ -49,6 +49,8 @@ def _dispatch_brevo_email(app, subject, sender_email, to_email, html_content):
 def send_verification_email(to_email: str, raw_token: str, user_name: str = "User") -> None:
     """Sends an account verification email via Brevo HTTP API."""
     backend_url = os.getenv('BACKEND_URL', '').rstrip('/')
+    if backend_url and not backend_url.startswith('http'):
+        backend_url = 'https://' + backend_url
     if not backend_url:
         raise EnvironmentError("BACKEND_URL is not set — verification link cannot be constructed.")
 
@@ -106,6 +108,8 @@ def send_verification_email(to_email: str, raw_token: str, user_name: str = "Use
 def send_reset_email(to_email: str, raw_token: str, user_name: str = "User") -> None:
     """Sends a password reset email via Brevo HTTP API."""
     frontend_url = os.getenv('FRONTEND_URL', '').rstrip('/')
+    if frontend_url and not frontend_url.startswith('http'):
+        frontend_url = 'https://' + frontend_url
     if not frontend_url:
         raise EnvironmentError("FRONTEND_URL is not set — reset link cannot be constructed.")
 
