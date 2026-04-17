@@ -183,7 +183,7 @@ def resend_verification():
 
 @auth_bp.route('/verify/<token>', methods=['GET'])
 def verify_email(token):
-    frontend_url = os.environ.get("FRONTEND_URL", "").rstrip('/')
+    frontend_url = os.environ.get("FRONTEND_URL", "").strip().rstrip('/')
     if frontend_url and not frontend_url.startswith('http'):
         frontend_url = 'https://' + frontend_url
     if not frontend_url:

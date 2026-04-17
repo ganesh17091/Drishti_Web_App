@@ -48,11 +48,11 @@ def _dispatch_brevo_email(app, subject, sender_email, to_email, html_content):
 
 def send_verification_email(to_email: str, raw_token: str, user_name: str = "User") -> None:
     """Sends an account verification email via Brevo HTTP API."""
-    backend_url = os.getenv('BACKEND_URL', '').rstrip('/')
-    if backend_url and not backend_url.startswith('http'):
-        backend_url = 'https://' + backend_url
+    backend_url = os.getenv('BACKEND_URL', '').strip().rstrip('/')
     if not backend_url:
         raise EnvironmentError("BACKEND_URL is not set — verification link cannot be constructed.")
+    if not backend_url.startswith('http'):
+        backend_url = 'https://' + backend_url
 
     sender_email = current_app.config.get('MAIL_DEFAULT_SENDER', 'noreply@focuspath.com')
     verify_link = f"{backend_url}/auth/verify/{raw_token}"
@@ -107,11 +107,11 @@ def send_verification_email(to_email: str, raw_token: str, user_name: str = "Use
 
 def send_reset_email(to_email: str, raw_token: str, user_name: str = "User") -> None:
     """Sends a password reset email via Brevo HTTP API."""
-    frontend_url = os.getenv('FRONTEND_URL', '').rstrip('/')
-    if frontend_url and not frontend_url.startswith('http'):
-        frontend_url = 'https://' + frontend_url
+    frontend_url = os.getenv('FRONTEND_URL', '').strip().rstrip('/')
     if not frontend_url:
         raise EnvironmentError("FRONTEND_URL is not set — reset link cannot be constructed.")
+    if not frontend_url.startswith('http'):
+        frontend_url = 'https://' + frontend_url
 
     sender_email = current_app.config.get('MAIL_DEFAULT_SENDER', 'noreply@focuspath.com')
     reset_link = f"{frontend_url}/reset-password/{raw_token}"
