@@ -37,4 +37,4 @@ class Config:
 
     # Brevo HTTP Email API Configuration
     BREVO_API_KEY = os.environ.get('BREVO_API_KEY')
-    MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER') or 'pawarsanika963@gmail.com'
+    MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER') or 'ajstyle876755@gmail.com'
