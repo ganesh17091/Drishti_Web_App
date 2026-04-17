@@ -268,20 +268,35 @@ export default function Dashboard() {
               ) : "0h")}
             </div>
             
-            {/* Progress Bar */}
-            <div style={{ display: "flex", width: "100%", height: "14px", borderRadius: "999px", overflow: "hidden", gap: "2px", marginTop: "0.5rem" }}>
-                <div style={{ width: "62%", height: "100%", background: "#ea580c" }} title="Deep work 62%"></div>
-                <div style={{ width: "12%", height: "100%", background: "#facc15" }} title="Internal Tasks 12%"></div>
-                <div style={{ width: "7%", height: "100%", background: "#8b5cf6" }} title="Meetings 7%"></div>
-                <div style={{ width: "19%", height: "100%", background: "#94a3b8" }} title="Breaks 19%"></div>
-            </div>
-            {/* Legend */}
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", color: "var(--text-secondary)", marginTop: "0.25rem", fontWeight: 500 }}>
-                <span style={{color: "#ea580c"}}>Deep work 62%</span>
-                <span style={{color: "#facc15"}}>Tasks 12%</span>
-                <span style={{color: "#8b5cf6"}}>Meets 7%</span>
-                <span>Breaks 19%</span>
-            </div>
+            {/* Progress Bar — only shown when there is real activity data */}
+            {insights && (insights.stats?.daily_hours ?? insights.stats.total_hours) > 0 ? (() => {
+              const totalH = insights.stats?.daily_hours ?? insights.stats.total_hours;
+              const sessions = insights.stats?.daily_sessions ?? insights.stats.total_sessions;
+              const tasks = insights.stats?.daily_tasks ?? insights.stats.tasks_completed;
+              // Approximate breakdown: sessions → deep work, tasks → task time, rest → breaks
+              const deepPct = Math.min(100, Math.round((sessions / Math.max(sessions + tasks + 1, 1)) * 62));
+              const taskPct = Math.min(100 - deepPct, Math.round((tasks / Math.max(sessions + tasks + 1, 1)) * 25));
+              const breakPct = 100 - deepPct - taskPct;
+              return (
+                <>
+                  <div style={{ display: "flex", width: "100%", height: "14px", borderRadius: "999px", overflow: "hidden", gap: "2px", marginTop: "0.5rem" }}>
+                    <div style={{ width: `${deepPct}%`, height: "100%", background: "#ea580c" }} title={`Deep work ${deepPct}%`}></div>
+                    <div style={{ width: `${taskPct}%`, height: "100%", background: "#facc15" }} title={`Tasks ${taskPct}%`}></div>
+                    <div style={{ width: `${breakPct}%`, height: "100%", background: "#94a3b8" }} title={`Breaks ${breakPct}%`}></div>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75rem", color: "var(--text-secondary)", marginTop: "0.25rem", fontWeight: 500 }}>
+                    <span style={{color: "#ea580c"}}>Deep work {deepPct}%</span>
+                    <span style={{color: "#facc15"}}>Tasks {taskPct}%</span>
+                    <span>Breaks {breakPct}%</span>
+                  </div>
+                </>
+              );
+            })() : (
+              <>
+                <div style={{ display: "flex", width: "100%", height: "14px", borderRadius: "999px", overflow: "hidden", marginTop: "0.5rem", background: "rgba(0,0,0,0.08)" }}></div>
+                <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", marginTop: "0.25rem" }}>No activity logged today</div>
+              </>
+            )}
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "1rem" }}>
@@ -474,7 +489,7 @@ export default function Dashboard() {
                     </div>
                     <div style={{ width: "140px", height: "140px", position: "relative" }}>
                         <CircularProgressbar
-                            value={insights ? ((insights.stats?.daily_hours ?? insights.stats.total_hours) % 8) / 8 * 100 : 75}
+                            value={insights ? ((insights.stats?.daily_hours ?? insights.stats.total_hours) % 8) / 8 * 100 : 0}
                             strokeWidth={8}
                             styles={buildStyles({
                                 rotation: 0.25,
